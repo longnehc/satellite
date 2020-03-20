@@ -90,24 +90,6 @@ protected:
 // This class performs operations very similar to what "Simulator instproc
 // compute-routes" does at OTcl-level, except it performs them entirely
 // in C++.  Single source shortest path routing is also supported.
-
-class SatRouteObject;
-class SatRouteTimer : public TimerHandler {
-public:
-	SatRouteTimer(SatRouteObject *a) : TimerHandler() {a_ = a; }
-protected:
-        virtual void expire(Event *e);
-        SatRouteObject *a_;
-};
-
-class SatDumpTimer : public TimerHandler {
-public:
-	SatDumpTimer(SatRouteObject *a) : TimerHandler() {a_ = a; }
-protected:
-        virtual void expire(Event *e);
-        SatRouteObject *a_;
-};
-
 class SatRouteObject : public RouteLogic {
 public:
   SatRouteObject(); 
@@ -122,37 +104,20 @@ public:
   void insert_link(int src, int dst, double cost, void* entry);
   int wiredRouting() { return wiredRouting_;}
 //void hier_insert_link(int *src, int *dst, int cost);  // support hier-rtg?
-  int domain(int node);
-  void route_timer();
-  void dump_timer();
-  double node_load(int node);
-  double link_load(int node1, int node2);
-  SatRouteTimer route_timer_;
-  SatDumpTimer dump_timer_;
-  static double** hybridcost_;
-  static double** plr;
+
 protected:
   void compute_topology();
   void populate_routing_tables(int node = -1);
   int lookup(int src, int dst);
   void* lookup_entry(int src, int dst);
   void node_compute_routes(int node);
-  void compute_routes();
   void dump(); // for debugging only
-
-  int cnodes;
-
 
   static SatRouteObject*  instance_;
   int metric_delay_;
   int suppress_initial_computation_;
   int data_driven_computation_;
   int wiredRouting_;
-
 };
-
-
-
-
 
 #endif

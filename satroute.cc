@@ -43,11 +43,51 @@ static const char rcsid[] =
 #include "sattrace.h"
 #include "satnode.h"
 #include "satlink.h"
-#include "satposition.h"
 #include "route.h"
 #include <address.h>
-#include <iostream>
+extern "C"{
+#include <glpk.h>
+}
 
+void test(){
+
+/* declare variables */
+  glp_prob *lp;
+  int ia[1+1000], ja[1+1000];
+  double ar[1+1000], z, x1, x2;
+  /* create problem */
+  lp = glp_create_prob();
+  glp_set_prob_name(lp, "short");
+  glp_set_obj_dir(lp, GLP_MAX);
+  /* fill problem */
+  glp_add_rows(lp, 2);
+  glp_set_row_name(lp, 1, "p");
+  glp_set_row_bnds(lp, 1, GLP_UP, 0.0, 1.0);
+  glp_set_row_name(lp, 2, "q");
+  glp_set_row_bnds(lp, 2, GLP_UP, 0.0, 2.0);
+  glp_add_cols(lp, 2);
+  glp_set_col_name(lp, 1, "x1");
+  glp_set_col_bnds(lp, 1, GLP_LO, 0.0, 0.0);
+  glp_set_obj_coef(lp, 1, 0.6);
+  glp_set_col_name(lp, 2, "x2");
+  glp_set_col_bnds(lp, 2, GLP_LO, 0.0, 0.0);
+  glp_set_obj_coef(lp, 2, 0.5);
+  ia[1] = 1, ja[1] = 1, ar[1] = 1.0; /* a[1,1] = 1 */
+  ia[2] = 1, ja[2] = 2, ar[2] = 2.0; /* a[1,2] = 2 */
+  ia[3] = 2, ja[3] = 1, ar[3] = 3.0; /* a[2,1] = 3 */
+  ia[4] = 2, ja[4] = 2, ar[4] = 1.0; /* a[2,2] = 1 */
+  glp_load_matrix(lp, 4, ia, ja, ar);
+  /* solve problem */
+  glp_simplex(lp, NULL);
+  /* recover and display results */
+  z = glp_get_obj_val(lp);
+  x1 = glp_get_col_prim(lp, 1);
+  x2 = glp_get_col_prim(lp, 2);
+  printf("z = %g; x1 = %g; x2 = %g\n", z, x1, x2);
+  /* housekeeping */
+  glp_delete_prob(lp);
+  glp_free_env();
+}
 
 static class SatRouteClass:public TclClass
 {
@@ -73,7 +113,6 @@ void SatRouteAgent::alloc(int slot)
 {
 	slot_entry *old = slot_;
 	int n = nslot_;
-//	std::cout << n <<std::endl;
 	if (old == 0)
 		nslot_ = 32;
 	while (nslot_ <= slot)
@@ -127,7 +166,6 @@ int SatRouteAgent::command (int argc, const char *const *argv)
 /*
  *  Find a target for the received packet
  */
-#include <random.h>
 void SatRouteAgent::forwardPacket(Packet * p)
 {
 	hdr_ip *iph = hdr_ip::access(p);
@@ -161,14 +199,6 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			return;
 		}
 		hdrc->next_hop_ = slot_[dst].next_hop;
-		double temp = Random::uniform(1.0);
-/*
-		 if(temp < SatRouteObject::plr[myaddr_][hdrc->next_hop_]){
-			Packet::free(p);
-			return;
-
-		}
-*/
 		link_entry_->recv(p, (Handler *)0);
 		return;
 	} else {
@@ -176,7 +206,6 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		printf("Error:  distributed routing not available\n");
 		exit(1);
 	}
-
 }
 
 void SatRouteAgent::recv (Packet * p, Handler *)
@@ -210,22 +239,6 @@ void SatRouteAgent::recv (Packet * p, Handler *)
 
 //###########################################################################
 
-double max(double a, double b){
-	return a > b ? a : b;
-}
-
-
-void SatRouteTimer::expire(Event*)
-{
-        a_->route_timer();
-}
-
-void SatDumpTimer::expire(Event*)
-{
-        a_->dump_timer();
-}
-
-
 static class SatRouteObjectClass:public TclClass
 {
   public:
@@ -236,105 +249,12 @@ static class SatRouteObjectClass:public TclClass
 } class_satrouteobject;
 
 SatRouteObject* SatRouteObject::instance_;
-double** SatRouteObject::plr;
-double** SatRouteObject::hybridcost_;
 
-bool plr_init = true;
-double plr_leo = 0.10;
-double plr_meo = 0.10;
-int flag = 0;
-bool dump_t = false;
-
-
-SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_(this),dump_timer_(this)
+SatRouteObject::SatRouteObject() : suppress_initial_computation_(0) 
 {
 	bind_bool("wiredRouting_", &wiredRouting_);
 	bind_bool("metric_delay_", &metric_delay_);
 	bind_bool("data_driven_computation_", &data_driven_computation_);
-	cnodes = 0;
-	SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
-	if(flag == 0) {
-		for (; snodep; snodep = (SatNode*) snodep->nextnode()) {
-				cnodes++;
-		}
-		flag++;
-	//	std::cout<<"Total number of nodes: "<<cnodes<<std::endl;
-	}
-	assert(cnodes != 0);
-	if(!plr_init){
-		SatRouteObject::plr = new double* [500];
-		for(int i = 0; i < 500; i++)
-			SatRouteObject::plr[i] = new double[500];
-		for(int i = 0; i < 66; i++)
-			for(int j = 0; j < 66; j++){
-				SatRouteObject::plr[i][j] = Random::uniform(plr_leo);
-		}
-		for(int i = 66; i < cnodes; i++)
-			for(int j = 66; j < cnodes; j++){
-				SatRouteObject::plr[i][j] = Random::uniform(plr_meo);
-		}
-		for(int i = cnodes; i < 500; i++){
-			for(int j = cnodes; j < 500; j++){
-				SatRouteObject::plr[i][j] = 1;
-			}
-		}
-		std::cout<<"Packet Loss Rate initialization finished."<<std::endl;
-		hybridcost_ = new double* [500];
-		for(int i = 0; i < 500; i++)
-			SatRouteObject::hybridcost_[i] = new double[500];
-		for(int i = 0; i < 500 ;i++){
-			for(int j = 0; j < 500; j++){
-				SatRouteObject::hybridcost_[i][j]= 0;
-				}
-		}
-		std::cout<<"Hybrid cost initialization finished."<<std::endl;
-		plr_init = true;
-	}
-	//route_timer_.sched(1);
-	//dump_timer_.sched(10);
-
-}
-
-
-void SatRouteObject::dump_timer(){
-	dump_timer_.resched(10);
-	dump();
-}
-#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
-void SatRouteObject::route_timer(){
-/*
-	compute_topology();
-	for(int i = 1; i < size_;i++){
-		for(int j = 1; j < size_; j++)
-		{
-			if(ADJ(i,j) != 16383) {	//
-				double node_load_ratio_i = node_load(i);
-				double node_load_ratio_j = node_load(j);
-				double link_load_ij = link_load(i,j);
-				if(plr[i-1][j-1] == 1)
-					//SatRouteObject::hybridcost_[i][j] = INFINITY;
-					ADJ(i, j) = INFINITY;
-				else {
-					//SatRouteObject::hybridcost_[i][j] = ADJ(i, j) *
-				//	link_load_ij * max(node_load_ratio_i,node_load_ratio_j)
-					///(1-plr[i-1][j-1]);
-					double temp = ADJ(i, j);
-					ADJ(i, j) = ADJ(i, j) *link_load_ij * max(node_load_ratio_i,node_load_ratio_j)
-										/(1-plr[i-1][j-1]);
-
-					//std::cout<<"222222:"<<temp<<" "<<ADJ(i, j)<<std::endl;
-				}
-			}
-			else {
-				std::cout<<"222222:"<<std::endl;
-				SatRouteObject::hybridcost_[i][j] = INFINITY;
-			}
-		}
-	}
-	route_timer_.resched(100);
-	*/
-	route_timer_.resched(10);
-	dump();
 }
 
 int SatRouteObject::command (int argc, const char *const *argv)
@@ -400,11 +320,6 @@ void SatRouteObject::recompute()
 	    (NOW < 0.001 && suppress_initial_computation_) ) 
 		return;
 	else {
-		if(dump_t == false){
-			dump_t = true;
-			dump_timer_.sched(10);
-			//route_timer_.sched(10);
-		}
 		compute_topology();
 		if (wiredRouting_) {
 			Tcl::instance().evalf("[Simulator instance] compute-flat-routes");
@@ -417,7 +332,6 @@ void SatRouteObject::recompute()
 
 // Derives link adjacency information from the nodes and gives the current
 // topology information to the RouteLogic.
-
 void SatRouteObject::compute_topology()
 {
 	Node *nodep;
@@ -426,6 +340,7 @@ void SatRouteObject::compute_topology()
 	Channel *channelp, *channelp2;
 	int src, dst; 
 	double delay;
+
 	// wired-satellite integration
 	if (wiredRouting_) {
 		// There are two route objects being used
@@ -437,69 +352,59 @@ void SatRouteObject::compute_topology()
 	// Compute adjacencies.  Traverse linked list of nodes 
         for (nodep=Node::nodehead_.lh_first; nodep; nodep = nodep->nextnode()) {
 	    // Cycle through the linked list of linkheads
-	    if (!SatNode::IsASatNode(nodep->address())){
-	    //	std::cout<<nodep->address()<<std::endl;
-	    	continue;
-	    }
+	    if (!SatNode::IsASatNode(nodep->address()))
+	        continue;
 	    for (slhp = (SatLinkHead*) nodep->linklisthead().lh_first; slhp; 
 	      slhp = (SatLinkHead*) slhp->nextlinkhead()) {
-
-		if (slhp->type() == LINK_GSL_REPEATER){
-		//	std::cout<<"1: "<<nodep->address()<<std::endl;
+		if (slhp->type() == LINK_GSL_REPEATER)
 		    continue;
-		}
-		if (!slhp->linkup_){
-			//std::cout<<"2: "<<nodep->address()<<std::endl;
+		if (!slhp->linkup_)
 		    continue;
-		}
 		phytxp = (Phy *) slhp->phy_tx();
 		assert(phytxp);
 		channelp = phytxp->channel();
-		if (!channelp) {
-		//	std::cout<<"3: "<<nodep->address()<<std::endl;
+		if (!channelp) 
 	 	    continue; // Not currently connected to channel
-		}
 		// Next, look for receive interfaces on this channel
 		phyrxp = channelp->ifhead_.lh_first;
-		bool flag_bool = false;
 		for (; phyrxp; phyrxp = phyrxp->nextchnl()) {
 		    if (phyrxp == phytxp) {
-				printf("Configuration error:  a transmit interface \
-				  is a channel target\n");
-				exit(1);
+			printf("Configuration error:  a transmit interface \
+			  is a channel target\n");
+			exit(1);
 		    } 
 		    if (phyrxp->head()->type() == LINK_GSL_REPEATER) {
-				double delay_firsthop = ((SatChannel*)
-						channelp)->get_pdelay(phytxp->node(),
-						phyrxp->node());
-				if (!((SatLinkHead*)phyrxp->head())->linkup_)
-						continue;
-				phytxp2 = ((SatLinkHead*)phyrxp->head())->phy_tx();
-				channelp2 = phytxp2->channel();
-				if (!channelp2)
-						continue; // Not currently connected to channel
-				phyrxp2 = channelp2->ifhead_.lh_first;
-				for (; phyrxp2; phyrxp2 = phyrxp2->nextchnl()) {
-						if (phyrxp2 == phytxp2) {
-						printf("Config error: a transmit interface \
-						  is a channel target\n");
-						exit(1);
-					}
-						// Found an adjacency relationship.
-						// Add this link to the RouteLogic
-						src = phytxp->node()->address() + 1;
-						dst = phyrxp2->node()->address() + 1;
-					if (src == dst)
-					continue;
-					if (metric_delay_)
-							delay = ((SatChannel*)
-						  channelp2)->get_pdelay(phytxp2->node(),
-						  phyrxp2->node());
-					else {
-					delay = 1;
-					delay_firsthop = 0;
-					}
-					insert_link(src, dst, delay+delay_firsthop, (void*)slhp);
+			double delay_firsthop = ((SatChannel*)
+				    channelp)->get_pdelay(phytxp->node(), 
+				    phyrxp->node());
+			if (!((SatLinkHead*)phyrxp->head())->linkup_)
+		    	    continue;
+			phytxp2 = ((SatLinkHead*)phyrxp->head())->phy_tx();
+			channelp2 = phytxp2->channel();
+			if (!channelp2) 
+	 	    	    continue; // Not currently connected to channel
+			phyrxp2 = channelp2->ifhead_.lh_first;
+			for (; phyrxp2; phyrxp2 = phyrxp2->nextchnl()) {
+		    	    if (phyrxp2 == phytxp2) {
+			        printf("Config error: a transmit interface \
+			          is a channel target\n");
+			        exit(1);
+			    }
+		            // Found an adjacency relationship.
+		            // Add this link to the RouteLogic
+		            src = phytxp->node()->address() + 1;
+		            dst = phyrxp2->node()->address() + 1;
+			    if (src == dst)
+				continue;
+			    if (metric_delay_)
+		                delay = ((SatChannel*) 
+			          channelp2)->get_pdelay(phytxp2->node(), 
+			          phyrxp2->node());
+			    else {
+				delay = 1;
+				delay_firsthop = 0;
+			    }
+			    insert_link(src, dst, delay+delay_firsthop, (void*)slhp);
 			}
 		    } else {
 		        // Found an adjacency relationship.
@@ -520,15 +425,6 @@ void SatRouteObject::compute_topology()
 	//dump();
 }
 
-int SatRouteObject::domain(int node){
-	if(node>=0 && node <= 65)
-		return 1;
-	else if(node >= 66 && node <= 137)
-		return 2;
-	else
-		return 3;
-}
-
 void SatRouteObject::populate_routing_tables(int node)
 {
 	SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
@@ -541,37 +437,33 @@ void SatRouteObject::populate_routing_tables(int node)
 		return;
 	}
         for (; snodep; snodep = (SatNode*) snodep->nextnode()) {
-			if (!SatNode::IsASatNode(snodep->address())){
-				std::cout<<node<<std::endl;
-				continue;
-			}
-			// First, clear slots of the current routing table
-			if (snodep->ragent())
-				snodep->ragent()->clear_slots();
-			src = snodep->address();
-			if (node != -1 && node != src)
-				continue;
-			snodep2 = (SatNode*) Node::nodehead_.lh_first;
-			for (; snodep2; snodep2 = (SatNode*) snodep2->nextnode()) {
-							if (!SatNode::IsASatNode(snodep->address()))
-									continue;
-				dst = snodep2->address();
-				if(domain(src) != domain(dst))	continue;
-				next_hop = lookup(src, dst);
-				if (next_hop != -1 && src != dst) {
-					// Here need to insert target into slot table
-					target = (NsObject*) lookup_entry(src, dst);
-					if (target == 0) {
-						printf("Error, routelogic target ");
-						printf("not populated %f %d->%d,%d\n", NOW,src,dst,next_hop);
-						exit(1);
-					}
-					//printf("%d->%d\n",src,dst);
-					((SatNode*)snodep)->ragent()->install(dst,
-						next_hop, target);
+		if (!SatNode::IsASatNode(snodep->address()))
+			continue;   
+		// First, clear slots of the current routing table
+		if (snodep->ragent())
+			snodep->ragent()->clear_slots();
+		src = snodep->address();
+		if (node != -1 && node != src)
+			continue;
+		snodep2 = (SatNode*) Node::nodehead_.lh_first;
+		for (; snodep2; snodep2 = (SatNode*) snodep2->nextnode()) {
+                        if (!SatNode::IsASatNode(snodep->address()))
+                                continue;
+			dst = snodep2->address();
+			next_hop = lookup(src, dst);
+			if (next_hop != -1 && src != dst) {
+				// Here need to insert target into slot table
+				target = (NsObject*) lookup_entry(src, dst);
+				if (target == 0) {
+					printf("Error, routelogic target ");
+					printf("not populated %f\n", NOW); 
+					exit(1);
 				}
+				((SatNode*)snodep)->ragent()->install(dst, 
+				    next_hop, target); 
 			}
-        }
+		}
+	}
 		
 }
 
@@ -599,175 +491,22 @@ void* SatRouteObject::lookup_entry(int s, int d)
 void SatRouteObject::dump()
 {
 	int i, src, dst;
-	Node *nodep;
-	printf("Time: %lf\n",NOW);
 	for (i = 0; i < (size_ * size_); i++) {
 		if (adj_[i].cost != SAT_ROUTE_INFINITY) {
 			src = i / size_ - 1;
 			dst = i % size_ - 1;
-			//printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
+			printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
 		}
-        } 
-	for (nodep=Node::nodehead_.lh_first; nodep; nodep = nodep->nextnode()) {
-	    // Cycle through the linked list of linkheads
-	    if (!SatNode::IsASatNode(nodep->address())){
-	    	continue;
-	    }
-            if(nodep->address() % 11== 0)
-            printf("Node %d's posistion r: %lf, theta: %lf, phi: %lf\n", nodep->address(),((PolarSatPosition*)((SatNode*)nodep)->position())->coord().r,
-					((PolarSatPosition*)((SatNode*)nodep)->position())->coord().theta, ((PolarSatPosition*)((SatNode*)nodep)->position())->coord().phi);
-	
-	}
-	
-}
-
-double SatRouteObject::node_load(int node){
-	SatNode *nodep = (SatNode*) Node::nodehead_.lh_first;
-	SatLinkHead *slhp;
-	int total_length = 0, actual_length = 0;
-	for (; nodep; nodep = (SatNode*) nodep->nextnode()) {
-		if(nodep->address() + 1 == node){		//compute_route's parameter starts from 1
-			for (slhp = (SatLinkHead*) nodep->linklisthead().lh_first; slhp;
-					  slhp = (SatLinkHead*) slhp->nextlinkhead()) {
-				if (slhp->type() == LINK_GSL_REPEATER){
-					   continue;
-				}
-				if (!slhp->linkup_){
-					   continue;
-				}
-				total_length += slhp->queue()->limit();
-				actual_length += slhp->queue()->length();
-			}
-		break;
-		}
-	}
-	//if(actual_length != 0) printf("Hhehehe: %f\n",1 + (double)actual_length/(double)total_length);
-	if(total_length == 0) return 1;
-	return 1 + (double)actual_length/(double)total_length;
-}
-
-double SatRouteObject::link_load(int node1, int node2) {
-	double res = 0;
-	Phy *phytxp, *phyrxp;
-	Channel *channelp;
-	SatNode *recvnode;
-	SatNode *nodep = (SatNode*) Node::nodehead_.lh_first;
-	SatLinkHead *slhp;
-	int total_length = 0, actual_length = 0;
-	bool find = false;
-		for (; nodep; nodep = (SatNode*) nodep->nextnode()) {
-			if(nodep->address() + 1 == node1){		//compute_route's parameter starts from 1
-				for (slhp = (SatLinkHead*) nodep->linklisthead().lh_first; slhp;
-						  slhp = (SatLinkHead*) slhp->nextlinkhead()) {
-					if(slhp->type() == LINK_ISL_INTERPLANE
-							|| slhp->type() == LINK_ISL_INTRAPLANE){
-					phytxp = (Phy*) slhp->phy_tx();
-					assert(phytxp);
-					channelp = phytxp->channel();
-					phyrxp = channelp->ifhead_.lh_first;
-					recvnode = (SatNode*) phyrxp->node();
-					if(recvnode->address() + 1 == node2){
-					//	std::cout<<"find: "<<node1 <<" to: "<< recvnode->address() + 1 <<" node2: "<< node2 << std::endl;
-
-						if(slhp->queue()->limit() == 0) return 1;
-						res = (double)slhp->queue()->length()/(double)slhp->queue()->limit();
-						find = true;
-						break;
-					}
-				}
-
-			}
-		}
-			if(find)
-				break;
-		}
-	//if(res!=0) std::cout<<"find: "<<1 + res<<std::endl;
-	return 1 + res;
-}
-
-
-bool flag2 = false;
-void SatRouteObject::compute_routes()
-{
-	int n = size_;
-	int* parent = new int[n];
-	double* hopcnt = new double[n];
-//#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
-#define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
-#define ROUTE(i, j) route_[INDEX(i, j, size_)].next_hop
-#define ROUTE_ENTRY(i, j) route_[INDEX(i, j, size_)].entry
-	delete[] route_;
-	route_ = new route_entry[n * n];
-	memset((char *)route_, 0, n * n * sizeof(route_[0]));
-	/* do for all the sources */
-	int k;
-	for (k = 1; k < n; ++k) {
-		int v;
-		for (v = 0; v < n; v++)
-			parent[v] = v;
-
-		/* set the route for all neighbours first */
-		for (v = 1; v < n; ++v) {
-			if (parent[v] != k) {
-				//TODO
-				//std::cout<<"naoguila:"<<k<<" 11 "<<v<<ADJ(1, 106)<<std::endl;
-				hopcnt[v] = ADJ(k, v);
-				//hopcnt[v] = SatRouteObject::hybridcost_[k][v];
-				if (hopcnt[v] != INFINITY) {
-					ROUTE(k, v) = v;
-					ROUTE_ENTRY(k, v) = ADJ_ENTRY(k, v);
-				}
-			}
-		}
-		for (v = 1; v < n; ++v) {
-			/*
-			 * w is the node that is the nearest to the subtree
-			 * that has been routed
-			 */
-			int o = 0;
-			/* XXX */
-			hopcnt[0] = INFINITY;
-			int w;
-			for (w = 1; w < n; w++)
-				if (parent[w] != k && hopcnt[w] < hopcnt[o])
-					o = w;
-			parent[o] = k;
-			/*
-			 * update distance counts for the nodes that are
-			 * adjacent to o
-			 */
-			if (o == 0)
-				continue;
-			for (w = 1; w < n; w++) {
-				if (parent[w] != k &&
-				    hopcnt[o] + ADJ(o, w) < hopcnt[w]) {
-					ROUTE(k, w) = ROUTE(k, o);
-					ROUTE_ENTRY(k, w) =
-					    ROUTE_ENTRY(k, o);
-					hopcnt[w] = hopcnt[o] + ADJ(o, w);
-				}
-			}
-		}
-	}
-	/*
-	 * The route to yourself is yourself.
-	 */
-	for (k = 1; k < n; ++k) {
-		ROUTE(k, k) = k;
-		ROUTE_ENTRY(k, k) = 0; // This should not matter
-	}
-
-	delete[] hopcnt;
-	delete[] parent;
+        }
 }
 
 void SatRouteObject::node_compute_routes(int node)
 {
-		int n = size_;
-        //std::cout<<size_<<std::endl;
+	//test();
+        int n = size_;
         int* parent = new int[n];
         double* hopcnt = new double[n];
-//#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
+#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 #define ROUTE(i, j) route_[INDEX(i, j, size_)].next_hop
 #define ROUTE_ENTRY(i, j) route_[INDEX(i, j, size_)].entry
