@@ -47,7 +47,9 @@ static const char rcsid[] =
 #include "satnode.h"
 #include "satgeometry.h"
 #include <math.h>
-
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 static class LinkHandoffMgrClass : public TclClass {
 public:
@@ -97,7 +99,13 @@ void SatHandoffTimer::expire(Event*)
 void TermHandoffTimer::expire(Event*)
 {                           
         a_->handoff();  
-}                               
+}                 
+
+void CoopDumpTimer::expire(Event*)
+{                           
+	a_->dump_timer();	
+}              
+  
 
 //////////////////////////////////////////////////////////////////////////////
 // class LinkHandoffMgr
@@ -205,10 +213,22 @@ SatNode* LinkHandoffMgr::get_peer(SatLinkHead* slhp)
 double TermLinkHandoffMgr::elevation_mask_ = 0;
 int TermLinkHandoffMgr::term_handoff_int_ = 10;
 
-TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this)
+bool store = false;
+
+void TermLinkHandoffMgr::dump_timer(){
+	dump_timer_.resched(1);
+	if(NOW>86390 & !store) {
+		store = true;	
+		//cout<<"dddddddddd"<<endl;
+		storeCoop();
+	}
+}
+
+TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this),dump_timer_(this)
 {
 	bind("elevation_mask_", &elevation_mask_);
 	bind("term_handoff_int_", &term_handoff_int_);
+	dump_timer_.sched(1);    //switch to record cooperation node profile 
 }
 
 // 
@@ -219,6 +239,76 @@ TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this)
 //     ii) current link is down; check to see if it can go up
 // If there are any changes, call for rerouting.  Finally, restart the timer. 
 //
+
+
+map<int, map<int, vector<double> > > TermLinkHandoffMgr::getCoop() 
+{
+	return coopprofile;
+}   
+
+void TermLinkHandoffMgr::addCoop(int dst, int coop, double time){
+	//dst: earth station; coop: cooperation node; time: establish-destroy.
+	map<int, vector<double> > tm;
+	vector<double> tv;
+	if(coopprofile.find(dst) != coopprofile.end()){
+		tm = coopprofile[dst];
+		if(tm.find(coop) != tm.end()){
+			tv = tm[coop];
+			tv.push_back(time);
+			tm[coop] = tv;
+			coopprofile[dst] = tm;	
+		} else
+		{
+			tv.push_back(time);
+			tm[coop] = tv;
+			coopprofile[dst] = tm;	
+		}	
+	} else
+	{
+		tv.push_back(time);
+		tm[coop] = tv;
+		coopprofile[dst] = tm;	
+	}
+}
+
+
+void TermLinkHandoffMgr::storeCoop(){
+	ofstream out;
+	out.open("coop.txt");
+	int termnum = coopprofile.size();
+	//cout<<"term num: "<<termnum<<endl;
+	out<<termnum<<endl;	
+	for(int i = 1; i <= termnum; i++){
+		map<int, vector<double> > tm = coopprofile[66+i];  //the first terminal is 67
+		for(int j = 1; j <= 66; j++){
+			if(tm.find(j)!=tm.end()){
+				vector<double> tv = tm[j];
+				out<<tv.size()<<endl;	
+				for(int k = 0; k < tv.size(); k++){
+					out<<tv[k]<<endl;				
+				}
+			}
+			else{
+				out<<0<<endl;		
+			}
+		}
+	} 
+	out.close();
+}
+
+//profile format:
+//number of term
+//{index of satellite from 1-66. number of time value, {time}}
+
+
+void TermLinkHandoffMgr::test(){
+	vector<double> tv = coopprofile[68][43];
+	//cout<<"vector size"<<tv.size()<<endl;
+	for(int i = 0; i < tv.size(); i++){
+		cout<<tv[i]<<endl;
+	}
+}
+
 int TermLinkHandoffMgr::handoff()
 {
 	coordinate sat_coord, earth_coord;
@@ -262,7 +352,11 @@ int TermLinkHandoffMgr::handoff()
 				// Set our channel pointers to NULL
 				slhp->phy_tx()->setchnl(0);
 				slhp->phy_rx()->setchnl(0);
-				// wired-satellite integration
+				// wired-satellite integration	
+			      // 	if(slhp->phy_tx()->node()->address()+1==67 && peer_->address()+1==32) 
+			//cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
+				//Initial case : NOW = 0
+				if(NOW!=0) addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);
 				if (SatRouteObject::instance().wiredRouting()) {
 					Tcl::instance().evalf("[Simulator instance] sat_link_destroy %d %d", slhp->phy_tx()->node()->address(), peer_->address());
 					// Must do this bidirectionally
@@ -323,11 +417,15 @@ int TermLinkHandoffMgr::handoff()
 				slhp->phy_rx()->setchnl(peer_->downlink());
 				// Add phy to channel's linked list of i/fces
 				slhp->phy_rx()->insertchnl(&(peer_->downlink()->ifhead_));
+				addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);
+			     //  if(slhp->phy_tx()->node()->address()+1==67 && peer_->address()+1==32) 
+				//	cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
 			}
 		}
 	}
 	if (link_changes_flag_) { 
 		SatRouteObject::instance().recompute();
+		//if(NOW > 80000) test();
 	}
 	if (restart_timer_flag_) {
 		// If we don't have polar GSLs, don't reset the timer
@@ -479,6 +577,7 @@ int SatLinkHandoffMgr::handoff()
 			// wired-satellite integration
 			if (SatRouteObject::instance().wiredRouting()) {
 			    Tcl::instance().evalf("[Simulator instance] sat_link_destroy %d %d", slhp->phy_tx()->node()->address(), peer_->address());
+			   cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address();
 			    Tcl::instance().evalf("[Simulator instance] sat_link_destroy %d %d", peer_->address(), slhp->phy_tx()->node()->address());
 			}
 		} else if ((!slhp->linkup_  || !peer_slhp->linkup_) && 

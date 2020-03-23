@@ -43,6 +43,10 @@
 #include "rng.h"
 #include "node.h"
 #include <math.h>
+#include <vector>
+#include <map>
+
+using namespace std;
 
 // Handoff manager types
 #define LINKHANDOFFMGR_SAT 1
@@ -51,6 +55,15 @@
 
 class TermLinkHandoffMgr;
 class SatLinkHandoffMgr;
+
+
+class CoopDumpTimer : public TimerHandler {
+public:
+        CoopDumpTimer(TermLinkHandoffMgr *a) : TimerHandler() {a_ = a; }
+protected:
+        virtual void expire(Event *e);
+        TermLinkHandoffMgr *a_;
+};
 
 class TermHandoffTimer : public TimerHandler {
 public:
@@ -123,11 +136,19 @@ protected:
 	static int sat_handoff_int_;
 };
 
+map<int, map<int, vector<double> > > coopprofile;
+
 class TermLinkHandoffMgr : public LinkHandoffMgr {
 public:
 	TermLinkHandoffMgr();
 	int handoff();
-protected:
+	map<int, map<int, vector<double> > > getCoop();
+	void addCoop(int dst, int coop, double time);
+        void storeCoop();
+	void test();
+	void dump_timer();
+	CoopDumpTimer dump_timer_;
+protected:	
 	TermHandoffTimer timer_;
 	static double elevation_mask_;
 	static int term_handoff_int_;

@@ -42,6 +42,8 @@
 #include <agent.h>
 #include "route.h"
 #include "node.h"
+#include <vector>
+#include <map>
 
 #define ROUTER_PORT      0xff
 #define SAT_ROUTE_INFINITY 0x3fff
@@ -90,9 +92,19 @@ protected:
 // This class performs operations very similar to what "Simulator instproc
 // compute-routes" does at OTcl-level, except it performs them entirely
 // in C++.  Single source shortest path routing is also supported.
+
+class SatRouteObject;
+class SatRouteTimer : public TimerHandler {
+public:
+	SatRouteTimer(SatRouteObject *a) : TimerHandler() {a_ = a; }
+protected:
+        virtual void expire(Event *e);
+        SatRouteObject *a_;
+};
+
 class SatRouteObject : public RouteLogic {
 public:
-  SatRouteObject(); 
+  SatRouteObject();  
   static SatRouteObject& instance() {
 	return (*instance_);            // general access to route object
   }
@@ -104,13 +116,18 @@ public:
   void insert_link(int src, int dst, double cost, void* entry);
   int wiredRouting() { return wiredRouting_;}
 //void hier_insert_link(int *src, int *dst, int cost);  // support hier-rtg?
-
+  void route_timer();
+  SatRouteTimer route_timer_;
+  void load_coopprofile();
+  map<int, map<int, vector<double> > >  coopprofile;
+  void profile_test();
 protected:
   void compute_topology();
   void populate_routing_tables(int node = -1);
   int lookup(int src, int dst);
   void* lookup_entry(int src, int dst);
   void node_compute_routes(int node);
+  void compute_routes();
   void dump(); // for debugging only
 
   static SatRouteObject*  instance_;

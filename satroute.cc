@@ -45,6 +45,11 @@ static const char rcsid[] =
 #include "satlink.h"
 #include "route.h"
 #include <address.h>
+#include <iostream>
+#include <fstream>
+
+ 
+using namespace std;
 extern "C"{
 #include <glpk.h>
 }
@@ -239,6 +244,11 @@ void SatRouteAgent::recv (Packet * p, Handler *)
 
 //###########################################################################
 
+void SatRouteTimer::expire(Event*)
+{
+        a_->route_timer();
+}
+
 static class SatRouteObjectClass:public TclClass
 {
   public:
@@ -250,11 +260,62 @@ static class SatRouteObjectClass:public TclClass
 
 SatRouteObject* SatRouteObject::instance_;
 
-SatRouteObject::SatRouteObject() : suppress_initial_computation_(0) 
+void SatRouteObject::profile_test(){
+	vector<double> tv = coopprofile[68][43]; 
+	for(int i = 0; i < tv.size(); i++){
+		cout<<tv[i]<<endl;
+	}
+
+}
+
+SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_(this)
 {
 	bind_bool("wiredRouting_", &wiredRouting_);
 	bind_bool("metric_delay_", &metric_delay_);
 	bind_bool("data_driven_computation_", &data_driven_computation_);
+	route_timer_.sched(1);
+	load_coopprofile();
+	//profile_test();
+
+}
+
+
+ 
+
+void SatRouteObject::load_coopprofile(){
+	ifstream in;
+	in.open("coop.txt");
+    	if(!in){
+        	cout << "open file failed" << endl;
+        	return;
+    	}
+	int termnum = 0;
+	in >> termnum;
+	for(int i = 1; i <= termnum; i++){
+		int term_index = 66 + i;
+		for(int j = 1; j <= 66; j++){
+			int sat_index = j;
+			int numOftime = 0;
+			in >> numOftime;
+			if(numOftime == 0) continue;
+			else{
+				vector<double> tv;
+				for(int k = 0; k < numOftime; k++){
+					double time;
+					in >> time;
+					tv.push_back(time);
+				}
+				coopprofile[term_index][sat_index]=tv;
+			}
+		}
+
+	}
+}
+
+void SatRouteObject::route_timer(){
+	route_timer_.resched(1); 
+//	cout<<"dasdad"<<endl;
+//	dump();
 }
 
 int SatRouteObject::command (int argc, const char *const *argv)
@@ -404,6 +465,7 @@ void SatRouteObject::compute_topology()
 				delay = 1;
 				delay_firsthop = 0;
 			    }
+			    //cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay+delay_firsthop<<endl;
 			    insert_link(src, dst, delay+delay_firsthop, (void*)slhp);
 			}
 		    } else {
@@ -417,6 +479,7 @@ void SatRouteObject::compute_topology()
 			      phyrxp->node());
 			else
 			    delay = 1;
+		//	if(src > 66 || dst > 66) cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay<<endl;
 			insert_link(src, dst, delay, (void*)slhp);
 		    }
 		}
@@ -498,6 +561,81 @@ void SatRouteObject::dump()
 			printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
 		}
         }
+}
+
+void SatRouteObject::compute_routes()
+{
+	//cout<<"I am invoked at "<<NOW<<endl;
+	int n = size_;
+	int* parent = new int[n];
+	double* hopcnt = new double[n];
+#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
+#define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
+#define ROUTE(i, j) route_[INDEX(i, j, size_)].next_hop
+#define ROUTE_ENTRY(i, j) route_[INDEX(i, j, size_)].entry
+	delete[] route_;
+	route_ = new route_entry[n * n];
+	memset((char *)route_, 0, n * n * sizeof(route_[0]));
+	/* do for all the sources */
+	int k;
+	for (k = 1; k < n; ++k) {
+		int v;
+		for (v = 0; v < n; v++)
+			parent[v] = v;
+
+		/* set the route for all neighbours first */
+		for (v = 1; v < n; ++v) {
+			if (parent[v] != k) {
+				//TODO
+				//std::cout<<"naoguila:"<<k<<" 11 "<<v<<ADJ(1, 106)<<std::endl;
+				hopcnt[v] = ADJ(k, v);
+				//hopcnt[v] = SatRouteObject::hybridcost_[k][v];
+				if (hopcnt[v] != INFINITY) {
+					ROUTE(k, v) = v;
+					ROUTE_ENTRY(k, v) = ADJ_ENTRY(k, v);
+				}
+			}
+		}
+		for (v = 1; v < n; ++v) {
+			/*
+			 * w is the node that is the nearest to the subtree
+			 * that has been routed
+			 */
+			int o = 0;
+			/* XXX */
+			hopcnt[0] = INFINITY;
+			int w;
+			for (w = 1; w < n; w++)
+				if (parent[w] != k && hopcnt[w] < hopcnt[o])
+					o = w;
+			parent[o] = k;
+			/*
+			 * update distance counts for the nodes that are
+			 * adjacent to o
+			 */
+			if (o == 0)
+				continue;
+			for (w = 1; w < n; w++) {
+				if (parent[w] != k &&
+				    hopcnt[o] + ADJ(o, w) < hopcnt[w]) {
+					ROUTE(k, w) = ROUTE(k, o);
+					ROUTE_ENTRY(k, w) =
+					    ROUTE_ENTRY(k, o);
+					hopcnt[w] = hopcnt[o] + ADJ(o, w);
+				}
+			}
+		}
+	}
+	/*
+	 * The route to yourself is yourself.
+	 */
+	for (k = 1; k < n; ++k) {
+		ROUTE(k, k) = k;
+		ROUTE_ENTRY(k, k) = 0; // This should not matter
+	}
+
+	delete[] hopcnt;
+	delete[] parent;
 }
 
 void SatRouteObject::node_compute_routes(int node)
