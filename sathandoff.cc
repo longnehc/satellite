@@ -228,7 +228,7 @@ TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this),dump_timer_(this)
 {
 	bind("elevation_mask_", &elevation_mask_);
 	bind("term_handoff_int_", &term_handoff_int_);
-	dump_timer_.sched(1);    //switch to record cooperation node profile 
+	//dump_timer_.sched(1);    //switch to record cooperation node profile 
 }
 
 // 

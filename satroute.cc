@@ -103,9 +103,13 @@ static class SatRouteClass:public TclClass
 	}
 } class_satroute;
 
+double SatRouteAgent::latitude_threshold_ = 0;
+
 SatRouteAgent::SatRouteAgent (): Agent (PT_MESSAGE), maxslot_(0), nslot_(0), slot_(0)
 {
 	bind ("myaddr_", &myaddr_);
+	bind("latitude_threshold_", &latitude_threshold_);
+	//cout<<"lat: "<<latitude_threshold_<<endl;
 }
 
 SatRouteAgent::~SatRouteAgent()
@@ -168,11 +172,55 @@ int SatRouteAgent::command (int argc, const char *const *argv)
 	return (Agent::command (argc, argv));
 }
 
+//dst ranges from 0-65; return value ranges from 0-65
+int SatRouteAgent::coop_selection(int dst){
+	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
+	int t_dst = dst + 1;
+	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop does not exists."<<endl;}
+	map<int, vector<double> > tm = coopprofile[t_dst];
+	double cur = NOW;
+	//cout<<"NOW: "<<NOW<<endl;
+	int res;
+	double maxdur = -1;      //record variable
+	for(int i = 1; i <=66; i++){
+		if(tm.find(i) != tm.end()){
+			vector<double>tv = tm[i];
+	//		cout<<"find "<<i<<" for dst= "<<t_dst<<endl;
+                        for(int j = 0; j < tv.size(); j++){
+	//			if(j%2 == 0) cout<<"start"<<tv[j]<<",";
+	//			else cout<<"end"<<tv[j]<<",";
+				if(tv[j] < cur && j + 1 <tv.size()){
+	//				cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
+					if(tv[j+1]-cur > maxdur){
+						res = i;
+						maxdur = tv[j+1]-cur;
+					}
+					break;
+				}
+			}
+			
+		}
+        }
+	//cout<<"find final: "<<res<<endl;
+	return res-1;
+}
+bool SatRouteAgent::isconnected(int myaddr, int dst){
+	
+	return true;
+}
+int SatRouteAgent::dra_routing(int myaddr, int dst){
+
+	return 0;
+}
+
+
 /*
  *  Find a target for the received packet
  */
 void SatRouteAgent::forwardPacket(Packet * p)
 {
+#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
+#define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 	hdr_ip *iph = hdr_ip::access(p);
   	hdr_cmn *hdrc = HDR_CMN (p);
 	NsObject *link_entry_;
@@ -208,6 +256,24 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		return;
 	} else {
 		// DISTRIBUTED ROUTING LOOKUP COULD GO HERE
+		//cout<<latitude_threshold_<<endl;
+		int nxhop;
+		if(isconnected(myaddr_, dst)) nxhop = dst;
+		else{
+			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
+			//calculate nxthop by distributed algorithm
+			nxhop = dra_routing(myaddr_, coop_index);		//nxthop ranges from 0-65
+			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
+		}		
+		//get link entry from nodehead_
+		SatNode *nodep = (SatNode*) Node::nodehead_.lh_first;
+		for (; nodep; nodep = (SatNode*) nodep->nextnode()) {     //nodep->address() ranges from 0-65
+			if(nodep->address() == nxhop)
+				link_entry_ = (NsObject*) nodep;
+		}
+		//set next hop & call recv
+		hdrc->next_hop_  = nxhop;
+                link_entry_->recv(p, (Handler *)0); 
 		printf("Error:  distributed routing not available\n");
 		exit(1);
 	}
@@ -280,7 +346,9 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 }
 
 
- 
+map<int, map<int, vector<double> > > SatRouteObject::get_coopprofile(){
+	return coopprofile;
+}
 
 void SatRouteObject::load_coopprofile(){
 	ifstream in;
@@ -529,7 +597,8 @@ void SatRouteObject::populate_routing_tables(int node)
 	}
 		
 }
-
+//look up: add 1 because route table range from 1-66. 
+//However, the slot_ ranges from 0-65.
 int SatRouteObject::lookup(int s, int d)
 {                                       
 	int src = s + 1;        
@@ -565,8 +634,8 @@ void SatRouteObject::dump()
 
 void SatRouteObject::compute_routes()
 {
-	//cout<<"I am invoked at "<<NOW<<endl;
-	int n = size_;
+	//cout<<"I am invoked at "<<NOW<<endl;  
+	int n = size_;  	//size_ is 128
 	int* parent = new int[n];
 	double* hopcnt = new double[n];
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
@@ -637,7 +706,7 @@ void SatRouteObject::compute_routes()
 	delete[] hopcnt;
 	delete[] parent;
 }
-
+//node ranges from 0-65; adj & route table 1-66
 void SatRouteObject::node_compute_routes(int node)
 {
 	//test();

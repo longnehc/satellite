@@ -71,10 +71,13 @@ public:
   void install(int dst, int next_hop, NsObject* p);
   SatNode* node() { return node_; }
   int myaddr() {return myaddr_; }
-  
+  int dra_routing(int myaddr, int dst);
+  bool isconnected(int myaddr, int dst);
 protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
+  int coop_selection(int dst);
+
   int myaddr_;           // My address-- set from OTcl
 
   // centralized routing stuff
@@ -83,7 +86,8 @@ protected:
   slot_entry* slot_;	// Node's forwarding table 
   void alloc(int);	// Helper function
   SatNode* node_;
-  
+  static double latitude_threshold_;
+
 };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -119,8 +123,10 @@ public:
   void route_timer();
   SatRouteTimer route_timer_;
   void load_coopprofile();
+  map<int, map<int, vector<double> > > get_coopprofile();
   map<int, map<int, vector<double> > >  coopprofile;
-  void profile_test();
+  void profile_test(); 
+
 protected:
   void compute_topology();
   void populate_routing_tables(int node = -1);
