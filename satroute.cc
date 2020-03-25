@@ -105,11 +105,13 @@ static class SatRouteClass:public TclClass
 
 double SatRouteAgent::latitude_threshold_ = 0;
 
+ 
+
 SatRouteAgent::SatRouteAgent (): Agent (PT_MESSAGE), maxslot_(0), nslot_(0), slot_(0)
 {
 	bind ("myaddr_", &myaddr_);
 	bind("latitude_threshold_", &latitude_threshold_);
-	//cout<<"lat: "<<latitude_threshold_<<endl;
+	//cout<<"AGENT INIT"<<endl;
 }
 
 SatRouteAgent::~SatRouteAgent()
@@ -179,39 +181,54 @@ int SatRouteAgent::coop_selection(int dst){
 	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop does not exists."<<endl;}
 	map<int, vector<double> > tm = coopprofile[t_dst];
 	double cur = NOW;
-	//cout<<"NOW: "<<NOW<<endl;
-	int res;
+	int res=0;
 	double maxdur = -1;      //record variable
 	for(int i = 1; i <=66; i++){
 		if(tm.find(i) != tm.end()){
 			vector<double>tv = tm[i];
-	//		cout<<"find "<<i<<" for dst= "<<t_dst<<endl;
-                        for(int j = 0; j < tv.size(); j++){
-	//			if(j%2 == 0) cout<<"start"<<tv[j]<<",";
-	//			else cout<<"end"<<tv[j]<<",";
+	//if(t_dst==68 && i == 35) cout<<"find "<<i<<" for dst= "<<t_dst<<endl;
+                        for(int j = 0; j < tv.size(); j = j + 2){
+				//if(j%2 == 0) cout<<"start "<<tv[j]<<",";
+				//else cout<<"end "<<tv[j]<<",";
 				if(tv[j] < cur && j + 1 <tv.size()){
-	//				cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
-					if(tv[j+1]-cur > maxdur){
+				     if(tv[j+1] < cur) continue;
+					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
+				     if(tv[j+1]-cur > maxdur){
 						res = i;
 						maxdur = tv[j+1]-cur;
+						//cout <<"tv[j]="<<tv[j]<<",res="<<res<<" NOW="<<cur<<" maxdur = "<<maxdur<<endl;
 					}
+					//cout<<"break!!!!!!!!!!: "<<i<<endl;
 					break;
 				}
 			}
 			
 		}
         }
-	//cout<<"find final: "<<res<<endl;
+/*	if(res == 0) {
+	cout<<"t_dst= "<<t_dst<<" NOW: "<<NOW<<endl;
+		for(int i = 1; i <=66; i++){
+			if(tm.find(i) != tm.end()){
+				vector<double>tv = tm[i];
+cout<<"i="<<i<<" "; 
+		                for(int j = 0; j < tv.size(); j++){
+					cout<<tv[j]<<",";
+				}
+cout<<endl;
+			}
+		}
+	}*/
+	if(res == 0){cout<<"coop does not find."; exit(1);}
+	//cout<<"find final: "<<res-1<<endl;
 	return res-1;
 }
+//myaddr,dst ranges from 0-65
 bool SatRouteAgent::isconnected(int myaddr, int dst){
+	bool res = false;
 	
-	return true;
+	return res;
 }
-int SatRouteAgent::dra_routing(int myaddr, int dst){
 
-	return 0;
-}
 
 
 /*
@@ -224,7 +241,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	hdr_ip *iph = hdr_ip::access(p);
   	hdr_cmn *hdrc = HDR_CMN (p);
 	NsObject *link_entry_;
-
+	int last_hop = hdrc->last_hop_;
 	hdrc->direction() = hdr_cmn::DOWN; // send it down the stack
 	int dst = Address::instance().get_nodeaddr(iph->daddr());
 	// Here we need to have an accurate encoding of the next hop routing
@@ -257,8 +274,14 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	} else {
 		// DISTRIBUTED ROUTING LOOKUP COULD GO HERE
 		//cout<<latitude_threshold_<<endl;
+		SatRouteObject::instance().compute_topology();
+		adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
+		int size = 128;
+		#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
+		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
 		int nxhop;
-		if(isconnected(myaddr_, dst)) nxhop = dst;
+
+		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY) {nxhop = dst; cout<<"reach destination: "<<dst<<endl;}
 		else{
 			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
@@ -266,17 +289,37 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
-		SatNode *nodep = (SatNode*) Node::nodehead_.lh_first;
-		for (; nodep; nodep = (SatNode*) nodep->nextnode()) {     //nodep->address() ranges from 0-65
-			if(nodep->address() == nxhop)
-				link_entry_ = (NsObject*) nodep;
-		}
+		
+		
+		link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, nxhop+1);	
+		//dump(pubadj_);
 		//set next hop & call recv
 		hdrc->next_hop_  = nxhop;
+		//cout<<"link_entry: "<<link_entry_<<endl;
                 link_entry_->recv(p, (Handler *)0); 
-		printf("Error:  distributed routing not available\n");
-		exit(1);
+		
+		//printf("Error:  distributed routing not available\n");
+		//exit(1);
 	}
+}
+
+void SatRouteAgent::dump(adj_entry* pubadj_)
+{
+	int i, src, dst;
+	int size = 128; 
+	for (i = 0; i < (size * size); i++) { 
+		if (pubadj_[i].cost != SAT_ROUTE_INFINITY) {
+			src = i / size - 1;
+			dst = i % size - 1;
+			printf("Found a link from %d to %d with cost %f at %f\n", src, dst, pubadj_[i].cost, NOW);
+		/*	if(src ==6){
+				#define ADJ2(i, j) pubadj_[INDEX(i, j, size_)].cost
+				#define ADJ3(i, j) pubadj_[INDEX(i, j, size)].cost
+				cout<<"cost= "<<ADJ2(src,dst)<< " src= "<< src<<" dst= "<< dst <<endl;
+				cout<<"cost= "<<ADJ3(src,dst)<< " src= "<< src<<" dst= "<< dst <<endl;
+			}*/
+		}
+        }
 }
 
 void SatRouteAgent::recv (Packet * p, Handler *)
@@ -327,7 +370,7 @@ static class SatRouteObjectClass:public TclClass
 SatRouteObject* SatRouteObject::instance_;
 
 void SatRouteObject::profile_test(){
-	vector<double> tv = coopprofile[68][43]; 
+	vector<double> tv = satcoopprofile[68][35]; 
 	for(int i = 0; i < tv.size(); i++){
 		cout<<tv[i]<<endl;
 	}
@@ -342,14 +385,17 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	route_timer_.sched(1);
 	load_coopprofile();
 	//profile_test();
+	//cout<<"ROUTEOBJECT INIT"<<endl;
 
 }
 
 
 map<int, map<int, vector<double> > > SatRouteObject::get_coopprofile(){
-	return coopprofile;
+	return satcoopprofile;
 }
-
+adj_entry* SatRouteObject::getAdj(){
+	return adj_;
+}
 void SatRouteObject::load_coopprofile(){
 	ifstream in;
 	in.open("coop.txt");
@@ -373,7 +419,7 @@ void SatRouteObject::load_coopprofile(){
 					in >> time;
 					tv.push_back(time);
 				}
-				coopprofile[term_index][sat_index]=tv;
+				satcoopprofile[term_index][sat_index]=tv;
 			}
 		}
 
@@ -442,13 +488,16 @@ void SatRouteObject::recompute_node(int node)
 }
 void SatRouteObject::recompute()
 {
+
 	// For very large topologies (e.g., Teledesic), we don't want to
 	// waste a lot of time computing routes at the beginning of the
 	// simulation.  This first if() clause suppresses route computations.
+
 	if (data_driven_computation_ ||
 	    (NOW < 0.001 && suppress_initial_computation_) ) 
 		return;
-	else {
+	//else {
+	else if(SatNode::dist_routing_ == 0){
 		compute_topology();
 		if (wiredRouting_) {
 			Tcl::instance().evalf("[Simulator instance] compute-flat-routes");
@@ -456,7 +505,144 @@ void SatRouteObject::recompute()
 			compute_routes(); // base class function
 		}
 		populate_routing_tables();
+	}// else if (SatNode::dist_routing_ == 1) compute_topology();
+}
+
+int SatRouteAgent::next_plane(int sp, int dp)
+{
+   if (dp == sp)
+	return 0;		//stay in plane
+   else if(dp > sp)
+	return 1;
+   else
+	return -1;
+/*
+   else if(dp - sp <= 3 || sp - dp > 3)
+	return 1;		//plane num++
+   else 
+	return -1;
+*/
+}
+
+int SatRouteAgent::next_num(int sn, int dn)
+{
+  if (dn == sn)
+	return 0;	//same index
+  else if ((dn > sn && dn - sn <= 5) || (sn > dn && sn - dn > 5))
+	return 1;	// num ++
+  else
+	return -1;
+}
+
+//myaddr,dst, nxhop ranges from 0-65
+int SatRouteAgent::dra_routing(int myaddr, int dst){
+	adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
+	int size = 128;		
+        #define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
+	#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
+	//Node *nodep;
+	//SatLinkHead *slhp ;
+	//Channel *channelp;
+	//int begin, end; 
+	//Phy *phytxp, *phyrxp;
+	//double delay, mdelay = 9999;
+	int sp = myaddr/11, sn = myaddr % 11;
+	int dp = dst/11, dn = dst % 11;
+	int np = next_plane(sp, dp);
+	int nn = next_num(sn, dn);
+	int nplane = sp, nnum = sn;
+	bool sameindex = false;
+	int nh1, nh2;
+	int res;
+        if(nn == 1) nnum = (sn + 1 > 10) ? 0 : sn + 1;
+	else if (nn == -1) nnum = (sn - 1 < 0) ? 10 : sn -1;
+	if(np == 1) nplane = (sp + 1 > 5) ? 0 : sp + 1;
+	else if (np == -1) nplane = (sp - 1 > 0) ? 5 : sp - 1;
+	if(np == 0){
+	    if(nn == 1 || nn == -1){
+		cout<<"Find link with same plane from "<< myaddr <<" to "<<11 * sp + nnum<<endl;	
+		return 11 * sp + nnum;
+	     } 
+	    else {cout<<"myaddr and dst is the same node "<<dst<<","<<dp<<","<<dn<<","<<myaddr<<","<<sp<<","<<sn<<" nn="<<nn<<endl; exit(1);}	
 	}
+        if(nn == 0) { nh1 = nplane * 11 + sn; }
+	//if(myaddr == 0 && dst == 24) cout<<"ddddd: "<<dp<<" dn="<<dn<<","<<myaddr<<","<<sp<<" sn="<<sn<<"nn="<<nn<<"np="<<np<<"nplane="<<nplane<<" nh1="<<nh1<<endl;
+        else {nh1 = nplane * 11 + sn; nh2 = sp * 11 + nnum;}
+	bool find = false;
+/*
+	for (nodep = Node::nodehead_.lh_first; nodep; nodep = nodep->nextnode()) {
+		if (!SatNode::IsASatNode(nodep->address()))
+	       		continue;
+		 for (slhp = (SatLinkHead*) nodep->linklisthead().lh_first; slhp; slhp = (SatLinkHead*) slhp->nextlinkhead()) {
+			if (slhp->type() == LINK_GSL_REPEATER) continue;
+			phytxp = (Phy *) slhp->phy_tx();
+			assert(phytxp);
+			channelp = phytxp->channel();
+			if (!channelp) 
+		 	    continue; // Not currently connected to channel
+			// Next, look for receive interfaces on this channel
+			phyrxp = channelp->ifhead_.lh_first;
+			for (; phyrxp; phyrxp = phyrxp->nextchnl()) {
+			    if (phyrxp == phytxp) {
+				printf("Configuration error:  a transmit interface \
+				  is a channel target\n");
+				exit(1);
+			    } 
+			    if (phyrxp->head()->type() != LINK_GSL_REPEATER) {
+				// Found an adjacency relationship.
+		        	if(nn == 0){
+					if(phytxp->node()->address() == myaddr && phyrxp->node()->address() == nh1){
+cout<<"Find link with same index from "<< myaddr <<" to "<<nh1<<" cost= "<<delay<<" NOW="<<NOW<<endl;	
+						find = true;	
+						return nh1;
+					}
+				}
+				else {
+					delay = ((SatChannel*) channelp)->get_pdelay(phytxp->node(),phyrxp->node());	
+							
+					if(phytxp->node()->address() == myaddr && phyrxp->node()->address() == nh1){
+	cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay<<" NOW="<<NOW<<endl;		
+						if(delay < mdelay){
+							mdelay = delay;
+							res = nh1;	
+							
+						}
+					}
+					if(phytxp->node()->address() == myaddr && phyrxp->node()->address() == nh2){
+cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay<<" NOW="<<NOW<<endl;
+						if(delay < mdelay){
+							mdelay = delay;
+							res = nh2;						
+						}
+					}
+				}    
+			    }		
+			}
+		 }
+	}
+*/
+	//dump(pubadj_); 
+        if(nn == 0){			
+		if(ADJ2(myaddr+1, nh1+1)!=SAT_ROUTE_INFINITY){
+			cout<<"Find link with same index from "<< myaddr <<" to "<<nh1<<" cost= "<<ADJ2(myaddr+1, nh1+1)<<" NOW="<<NOW<<endl;	
+			return nh1;
+		} else {
+			cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
+			return (myaddr + 1 > 10) ? 0 : myaddr+1;
+			dump(pubadj_);exit(1);
+		}
+	}
+	else {
+		double delay1 = ADJ2(myaddr+1, nh1+1);
+		double delay2 = ADJ2(myaddr+1, nh2+1);
+		if(delay1 > delay2) {res = nh2; 
+		cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<endl;
+		}
+		else {res = nh1; 
+		cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<endl;
+		}
+	}
+	return res;
 }
 
 // Derives link adjacency information from the nodes and gives the current
@@ -547,7 +733,7 @@ void SatRouteObject::compute_topology()
 			      phyrxp->node());
 			else
 			    delay = 1;
-		//	if(src > 66 || dst > 66) cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay<<endl;
+			//cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay<<endl;
 			insert_link(src, dst, delay, (void*)slhp);
 		    }
 		}
@@ -558,6 +744,8 @@ void SatRouteObject::compute_topology()
 
 void SatRouteObject::populate_routing_tables(int node)
 {
+	//dump();
+	//exit(1);	
 	SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
 	SatNode *snodep2;
 	int next_hop, src, dst;
@@ -642,6 +830,15 @@ void SatRouteObject::compute_routes()
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 #define ROUTE(i, j) route_[INDEX(i, j, size_)].next_hop
 #define ROUTE_ENTRY(i, j) route_[INDEX(i, j, size_)].entry
+
+ 	 
+//	cout<<"ADJ_ENTRY1:"<<ADJ_ENTRY(7, 18)<<endl;
+	adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
+	#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size_)].entry
+//	cout<<"ADJ_ENTRY2:"<< ADJ_ENTRY2(7, 18)<<" NOW "<<NOW<<endl;
+
+	 
+
 	delete[] route_;
 	route_ = new route_entry[n * n];
 	memset((char *)route_, 0, n * n * sizeof(route_[0]));

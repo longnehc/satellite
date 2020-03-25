@@ -136,7 +136,7 @@ protected:
 	static int sat_handoff_int_;
 };
 
-map<int, map<int, vector<double> > > coopprofile;
+
 
 class TermLinkHandoffMgr : public LinkHandoffMgr {
 public:
@@ -152,6 +152,7 @@ protected:
 	TermHandoffTimer timer_;
 	static double elevation_mask_;
 	static int term_handoff_int_;
+	map<int, map<int, vector<double> > > coopprofile;
 };
 
 #endif

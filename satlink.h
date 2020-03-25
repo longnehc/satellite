@@ -183,8 +183,8 @@ friend class SatRouteObject;
 	void remove_interface(Phy*);
 	int find_peer_mac_addr(int);
 
- protected:
 	double get_pdelay(Node* tnode, Node* rnode);
+ protected:
  private:
 
 };

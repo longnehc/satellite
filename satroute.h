@@ -73,6 +73,9 @@ public:
   int myaddr() {return myaddr_; }
   int dra_routing(int myaddr, int dst);
   bool isconnected(int myaddr, int dst);
+  int next_plane(int sp, int dp);
+  int next_num(int sn, int dn); 
+  void dump(adj_entry* pubadj_);
 protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
@@ -124,11 +127,12 @@ public:
   SatRouteTimer route_timer_;
   void load_coopprofile();
   map<int, map<int, vector<double> > > get_coopprofile();
-  map<int, map<int, vector<double> > >  coopprofile;
+  map<int, map<int, vector<double> > >  satcoopprofile;
   void profile_test(); 
-
-protected:
+  adj_entry* getAdj();
   void compute_topology();
+protected:
+  
   void populate_routing_tables(int node = -1);
   int lookup(int src, int dst);
   void* lookup_entry(int src, int dst);
