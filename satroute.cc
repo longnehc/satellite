@@ -241,7 +241,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	hdr_ip *iph = hdr_ip::access(p);
   	hdr_cmn *hdrc = HDR_CMN (p);
 	NsObject *link_entry_;
-	int last_hop = hdrc->last_hop_;
+	int lasthop = hdrc->last_hop_;
 	hdrc->direction() = hdr_cmn::DOWN; // send it down the stack
 	int dst = Address::instance().get_nodeaddr(iph->daddr());
 	// Here we need to have an accurate encoding of the next hop routing
@@ -285,7 +285,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		else{
 			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
-			nxhop = dra_routing(myaddr_, coop_index);		//nxthop ranges from 0-65
+			nxhop = dra_routing(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
 			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
@@ -535,7 +535,7 @@ int SatRouteAgent::next_num(int sn, int dn)
 }
 
 //myaddr,dst, nxhop ranges from 0-65
-int SatRouteAgent::dra_routing(int myaddr, int dst){
+int SatRouteAgent::dra_routing(int myaddr, int dst, int lasthop){
 	adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
 	int size = 128;		
         #define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
@@ -550,9 +550,9 @@ int SatRouteAgent::dra_routing(int myaddr, int dst){
 	int dp = dst/11, dn = dst % 11;
 	int np = next_plane(sp, dp);
 	int nn = next_num(sn, dn);
-	int nplane = sp, nnum = sn;
+	int nplane = sp, nnum = sn, nnum3 = sn;
 	bool sameindex = false;
-	int nh1, nh2;
+	int nh1, nh2, nh3;
 	int res;
         if(nn == 1) nnum = (sn + 1 > 10) ? 0 : sn + 1;
 	else if (nn == -1) nnum = (sn - 1 < 0) ? 10 : sn -1;
@@ -567,7 +567,13 @@ int SatRouteAgent::dra_routing(int myaddr, int dst){
 	}
         if(nn == 0) { nh1 = nplane * 11 + sn; }
 	//if(myaddr == 0 && dst == 24) cout<<"ddddd: "<<dp<<" dn="<<dn<<","<<myaddr<<","<<sp<<" sn="<<sn<<"nn="<<nn<<"np="<<np<<"nplane="<<nplane<<" nh1="<<nh1<<endl;
-        else {nh1 = nplane * 11 + sn; nh2 = sp * 11 + nnum;}
+        else {
+		nh1 = nplane * 11 + sn; 
+		nh2 = sp * 11 + nnum;
+		if(nn ==1) nnum3 = (sn - 1 < 0) ? 10 : sn -1;
+		else nnum3 = (sn + 1 > 10) ? 0 : sn + 1;
+		nh3 = sp * 11 + nnum3;
+	}
 	bool find = false;
 /*
 	for (nodep = Node::nodehead_.lh_first; nodep; nodep = nodep->nextnode()) {
@@ -632,14 +638,25 @@ cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay<<" NOW="<<NOW<<
 			dump(pubadj_);exit(1);
 		}
 	}
-	else {
+	else {		
 		double delay1 = ADJ2(myaddr+1, nh1+1);
 		double delay2 = ADJ2(myaddr+1, nh2+1);
-		if(delay1 > delay2) {res = nh2; 
-		cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<endl;
+		if(nh2 == lasthop && delay1 != SAT_ROUTE_INFINITY) {
+			res = nh1;
+			cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
 		}
-		else {res = nh1; 
-		cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<endl;
+		else if (nh2 == lasthop && delay1 == SAT_ROUTE_INFINITY)	{
+			res = nh3;
+			cout<<"Exist loop. Detour from "<< myaddr <<" to "<<nh3<<" NOW="<<NOW<<endl;
+		} else {
+			if(delay1 > delay2) {
+			res = nh2; 
+			cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			}
+			else {
+			res = nh1; 
+			cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			}
 		}
 	}
 	return res;

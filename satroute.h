@@ -71,7 +71,7 @@ public:
   void install(int dst, int next_hop, NsObject* p);
   SatNode* node() { return node_; }
   int myaddr() {return myaddr_; }
-  int dra_routing(int myaddr, int dst);
+  int dra_routing(int myaddr, int dst, int lasthop);
   bool isconnected(int myaddr, int dst);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
