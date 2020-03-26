@@ -229,7 +229,18 @@ bool SatRouteAgent::isconnected(int myaddr, int dst){
 	return res;
 }
 
-
+bool SatRouteAgent::droppacket(int from, int to){
+	//return false; 		//droppacket switch
+	srand((int)time(0));
+	double x = (double)rand()/RAND_MAX;
+	double y = SatRouteObject::instance().getPlr(from, to);
+	if(x < y){
+		//cout<<"The packet is droped from "<<from-1<<" to "<<to-1<<" plr = "<<y<<endl;
+		return true;
+	}
+	else
+		return false;  
+}
 
 /*
  *  Find a target for the received packet
@@ -268,6 +279,9 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			Packet::free(p);
 			return;
 		}
+		if(droppacket(myaddr_+1, slot_[dst].next_hop+1)){ 
+			return;
+		}
 		hdrc->next_hop_ = slot_[dst].next_hop;
 		link_entry_->recv(p, (Handler *)0);
 		return;
@@ -289,7 +303,10 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
-		
+		if(droppacket(myaddr_+1, nxhop+1)){ 
+			cout<<"The packet is droped from "<<myaddr_<<" to "<<nxhop<<endl;;
+			return;
+		}
 		
 		link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, nxhop+1);	
 		//dump(pubadj_);
@@ -370,7 +387,7 @@ static class SatRouteObjectClass:public TclClass
 SatRouteObject* SatRouteObject::instance_;
 
 void SatRouteObject::profile_test(){
-	vector<double> tv = satcoopprofile[68][35]; 
+	vector<double> tv = coopprofile[68][35]; 
 	for(int i = 0; i < tv.size(); i++){
 		cout<<tv[i]<<endl;
 	}
@@ -382,16 +399,43 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	bind_bool("wiredRouting_", &wiredRouting_);
 	bind_bool("metric_delay_", &metric_delay_);
 	bind_bool("data_driven_computation_", &data_driven_computation_);
+	memset((double **)plr, 0, 128 * 128 * sizeof(plr[0][0]));
 	route_timer_.sched(1);
 	load_coopprofile();
+	load_plr();
 	//profile_test();
 	//cout<<"ROUTEOBJECT INIT"<<endl;
 
 }
 
+void SatRouteObject::load_plr(){
+	ifstream in;
+	in.open("plr.txt");
+    	if(!in){
+        	cout << "open file failed" << endl;
+        	return;
+    	}
+	for(int i = 1; i <= 66; i++){
+		for(int j = i + 1; j <= 66; j++){
+			double x;
+			in >> x;
+			plr[i][j] = x;
+			plr[j][i] = x;
+			//cout<<"Plr from "<< i << " to "<< j <<" is " <<x<<endl;
+		}
+	}
+}
+
+double SatRouteObject::getPlr(int from, int to){
+	if(from < 0 || from > 127 || to < 0 || to > 127) {
+		cout<<"Invalid index. from = "<<from<<" to= "<<to<<endl;
+		exit(1);
+	}
+        return plr[from][to];
+}
 
 map<int, map<int, vector<double> > > SatRouteObject::get_coopprofile(){
-	return satcoopprofile;
+	return coopprofile;
 }
 adj_entry* SatRouteObject::getAdj(){
 	return adj_;
@@ -419,7 +463,7 @@ void SatRouteObject::load_coopprofile(){
 					in >> time;
 					tv.push_back(time);
 				}
-				satcoopprofile[term_index][sat_index]=tv;
+				coopprofile[term_index][sat_index]=tv;
 			}
 		}
 

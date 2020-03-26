@@ -44,6 +44,8 @@
 #include "node.h"
 #include <vector>
 #include <map>
+#include <random>
+#include <time.h>
 
 #define ROUTER_PORT      0xff
 #define SAT_ROUTE_INFINITY 0x3fff
@@ -75,6 +77,7 @@ public:
   bool isconnected(int myaddr, int dst);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
+  bool droppacket(int from, int  to); 
   void dump(adj_entry* pubadj_);
 protected:
   virtual void recv(Packet *, Handler *);
@@ -126,8 +129,11 @@ public:
   void route_timer();
   SatRouteTimer route_timer_;
   void load_coopprofile();
+  void load_plr();
   map<int, map<int, vector<double> > > get_coopprofile();
-  map<int, map<int, vector<double> > >  satcoopprofile;
+  map<int, map<int, vector<double> > >  coopprofile;
+  double plr[128][128] ;
+  double getPlr(int from, int to);
   void profile_test(); 
   adj_entry* getAdj();
   void compute_topology();
