@@ -65,6 +65,9 @@ class SatNode;
 class SatRouteAgent : public Agent {
 public:
   SatRouteAgent();
+  static SatRouteAgent& instance() {
+	return (*instance_);            // general access to route object
+  }
   ~SatRouteAgent();
   int command(int argc, const char * const * argv);
 
@@ -73,16 +76,17 @@ public:
   void install(int dst, int next_hop, NsObject* p);
   SatNode* node() { return node_; }
   int myaddr() {return myaddr_; }
-  int dra_routing(int myaddr, int dst, int lasthop);
+  int dra_routes(int myaddr, int dst, int lasthop);
   bool isconnected(int myaddr, int dst);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
   bool droppacket(int from, int  to); 
   void dump(adj_entry* pubadj_);
+  int coop_selection(int dst);
 protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
-  int coop_selection(int dst);
+  
 
   int myaddr_;           // My address-- set from OTcl
 
@@ -93,6 +97,7 @@ protected:
   void alloc(int);	// Helper function
   SatNode* node_;
   static double latitude_threshold_;
+  static SatRouteAgent*  instance_;
 
 };
 
@@ -137,6 +142,12 @@ public:
   void profile_test(); 
   adj_entry* getAdj();
   void compute_topology();
+  double node_load(int node1, int node2);
+  int next_plane(int sp, int dp);
+  int next_num(int sn, int dn); 
+  void pathcal(int sp, int sn, int dp, int dn, int np, int nn, double plrthr, vector<double> delays, vector<vector<int> > paths);
+
+
 protected:
   
   void populate_routing_tables(int node = -1);
@@ -144,6 +155,7 @@ protected:
   void* lookup_entry(int src, int dst);
   void node_compute_routes(int node);
   void compute_routes();
+  void cct_routes();
   void dump(); // for debugging only
 
   static SatRouteObject*  instance_;
@@ -151,6 +163,11 @@ protected:
   int suppress_initial_computation_;
   int data_driven_computation_;
   int wiredRouting_;
+  double islbw;
+  double frate;
+  int psize;
+  vector<int> src;
+  bool cct_enabled;
 };
 
 #endif
