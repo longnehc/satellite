@@ -309,8 +309,11 @@ void TermLinkHandoffMgr::test(){
 	}
 }
 
+TermLinkHandoffMgr* TermLinkHandoffMgr::instance_;
+ 
 int TermLinkHandoffMgr::handoff()
 {
+	//cout<<"handoff called at "<<NOW<<endl;
 	coordinate sat_coord, earth_coord;
 	SatLinkHead* slhp;
 	SatNode *peer_; // Polar satellite at opposite end of the GSL

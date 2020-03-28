@@ -129,6 +129,7 @@ class LeoSatLinkHandoffMgr : public SatLinkHandoffMgr {
 public:
 	LeoSatLinkHandoffMgr();
 	int handoff();
+	
 protected:
 	SatHandoffTimer timer_;
 	static double latitude_threshold_;
@@ -148,11 +149,15 @@ public:
 	void test();
 	void dump_timer();
 	CoopDumpTimer dump_timer_;
+	static TermLinkHandoffMgr& instance() {
+		return (*instance_);            // general access to route object
+  	}
 protected:	
 	TermHandoffTimer timer_;
 	static double elevation_mask_;
 	static int term_handoff_int_;
 	map<int, map<int, vector<double> > > coopprofile;
+	static TermLinkHandoffMgr*  instance_;
 };
 
 #endif

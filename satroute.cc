@@ -248,6 +248,9 @@ bool SatRouteAgent::droppacket(int from, int to){
 /*
  *  Find a target for the received packet
  */
+
+bool dct_enabled = true;
+
 void SatRouteAgent::forwardPacket(Packet * p)
 {
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
@@ -302,7 +305,8 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		else{
 			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
-			nxhop = dra_routes(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
+			if(dct_enabled)
+				nxhop = dra_routes(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
 			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
@@ -502,9 +506,15 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	load_plr();
         src = {6};
 	cct_enabled = true;
+	//cct_enabled = false;
 	plrthr = 0.1;
 	//profile_test();
-	cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
+	if (SatNode::dist_routing_ == 1 && dct_enabled) cout<<"dct rouing model."<<endl;
+	else if(SatNode::dist_routing_ == 1 && !dct_enabled) cout<<"dra rouing model."<<endl;
+	else if (SatNode::dist_routing_ == 0 && cct_enabled) cout<<"cct routing model."<<endl;
+	else if (SatNode::dist_routing_ == 0 && !cct_enabled) cout<<"twc routing model"<<endl;
+	//cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
+	
 
 }
 
@@ -637,9 +647,10 @@ void SatRouteObject::recompute()
 	// waste a lot of time computing routes at the beginning of the
 	// simulation.  This first if() clause suppresses route computations.
 
-	if (data_driven_computation_ ||
-	    (NOW < 0.001 && suppress_initial_computation_) ) 
+	if (data_driven_computation_ || suppress_initial_computation_)
+	//    (NOW < 0.001 && suppress_initial_computation_) ) 
 		return;
+	else if (NOW < 10) return;			//to ensure that the handoff is invoked
 	//else {
 	else if(SatNode::dist_routing_ == 0){
 		compute_topology();
@@ -701,6 +712,7 @@ double SatRouteObject::node_load(int node1, int node2) {
 // topology information to the RouteLogic.
 void SatRouteObject::compute_topology()
 {
+	//cout<<"compute_topology called"<<endl;
 	Node *nodep;
 	Phy *phytxp, *phyrxp, *phytxp2, *phyrxp2;
 	SatLinkHead *slhp;
@@ -785,7 +797,7 @@ void SatRouteObject::compute_topology()
 			      phyrxp->node());
 			else
 			    delay = 1;
-			//cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay<<endl;
+			//if(src == 68 || dst == 68) cout<<"Add link from "<<src <<" to "<<dst<<",cost="<<delay<<endl;
 			insert_link(src, dst, delay, (void*)slhp);
 		    }
 		}
@@ -825,6 +837,10 @@ void SatRouteObject::populate_routing_tables(int node)
 			if (next_hop != -1 && src != dst) {
 				// Here need to insert target into slot table
 				target = (NsObject*) lookup_entry(src, dst);
+				//if(dst == 67) {
+				//cout<<"target="<<target<<endl;
+				//cout<<"The next hop from "<<src<<" to "<<dst<<" is "<<next_hop<<endl;
+				//}
 				if (target == 0) {
 					printf("Error, routelogic target ");
 					printf("not populated %f\n", NOW); 
@@ -951,12 +967,31 @@ void SatRouteObject::cct_routes(){
 		cand_path.push_back(source);
 		pathcal(sp, sn, dp, dn, np, nn, 1, 0, cand_path, pplrs, delays, paths);
 		f_path = rr_seletion(pplrs, delays, paths, dest);
-		cout<<"Find a path with minimal delay: "<<endl;	
-		for(int i = 0; i < f_path.size(); i++){
-			cout<<f_path[i]<<"->";	
+		map<int, int> mpath;
+		//cout<<"Find a path with minimal delay: "<<endl;	
+		for(int i = 0; i < f_path.size() - 1; i++){
+		//	cout<<f_path[i]<<"->";
+			mpath[f_path[i]] = f_path[i+1];	
 		}
-		cout<<endl;
+		mpath[f_path[f_path.size()-1]] = dest;	
+		//cout<<f_path[f_path.size()-1]<<endl;
 		//populate route tables
+		NsObject *target;
+		SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
+		for (; snodep; snodep = (SatNode*) snodep->nextnode()) {
+			if(mpath.find(snodep->address()) != mpath.end()){
+				if (snodep->ragent()) snodep->ragent()->clear_slots();
+				target = (NsObject*)ADJ_ENTRY(snodep->address()+1, mpath[snodep->address()]+1);
+				if (target == 0) {
+					printf("Error, routelogic target ");
+					printf("not populated %f %d->%d,%d\n", NOW,snodep->address(),dest,mpath[snodep->address()]);
+					dump();					
+					exit(1);
+				}
+				((SatNode*)snodep)->ragent()->install(dest, mpath[snodep->address()], target);
+				//cout<<"The next hop from "<<snodep->address()<<" to "<<dest<<" is "<<mpath[snodep->address()]<<endl;
+			}			
+		}
 		
 		
 	}
@@ -981,7 +1016,7 @@ vector<int> SatRouteObject::rr_seletion(vector<double> pplrs, vector<double> del
 		}
 	}
 	if(minplr > plrthr) {  // if the path satisfy plr does not exists.
-		cout<<" Select the path with minimal plr="<<minplr<<endl;
+		//cout<<" Select the path with minimal plr="<<minplr<<endl;
 		return paths[index];
 	} else { //select a path from cpaths	 	
 		for(int i = 0; i < cpaths.size(); i++){
