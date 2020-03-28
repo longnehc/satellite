@@ -146,10 +146,9 @@ public:
   double node_load(int node1, int node2);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
-  void pathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths);
-  vector<int> rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest);	
-
-
+  void cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths);
+  vector<int> rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest);
+  void tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, double delay, double mdelay, vector<int> path, vector<int>&tpath);	
 protected:
   
   void populate_routing_tables(int node = -1);
@@ -158,6 +157,7 @@ protected:
   void node_compute_routes(int node);
   void compute_routes();
   void cct_routes();
+  void tlr_routes();
   void dump(); // for debugging only
 
   static SatRouteObject*  instance_;
@@ -171,6 +171,7 @@ protected:
   double plrthr;
   vector<int> src;
   bool cct_enabled;
+  bool tlr_enabled;
 };
 
 #endif
