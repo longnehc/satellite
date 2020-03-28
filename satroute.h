@@ -145,7 +145,8 @@ public:
   double node_load(int node1, int node2);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
-  void pathcal(int sp, int sn, int dp, int dn, int np, int nn, double plrthr, vector<double> delays, vector<vector<int> > paths);
+  void pathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths);
+  vector<int> rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest);	
 
 
 protected:
@@ -166,6 +167,7 @@ protected:
   double islbw;
   double frate;
   int psize;
+  double plrthr;
   vector<int> src;
   bool cct_enabled;
 };

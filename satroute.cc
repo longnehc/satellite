@@ -231,6 +231,7 @@ bool SatRouteAgent::isconnected(int myaddr, int dst){
 	return res;
 }
 
+//from and to range from 1- 66
 bool SatRouteAgent::droppacket(int from, int to){
 	//return false; 		//droppacket switch
 	srand((int)time(0));
@@ -501,6 +502,7 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	load_plr();
         src = {6};
 	cct_enabled = true;
+	plrthr = 0.1;
 	//profile_test();
 	cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
 
@@ -866,12 +868,15 @@ void SatRouteObject::dump()
 			src = i / size_ - 1;
 			dst = i % size_ - 1;
 			printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
+			//cout<<ADJ(7,18)<<endl;
 		}
         }
 }
 
 
-void SatRouteObject::pathcal(int sp, int sn, int dp, int dn, int np, int nn, double plrthr, vector<double> delays, vector<vector<int> > paths){
+void SatRouteObject::pathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths){
+#define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
+#define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 	int nx_plane, nx_num;	
 	if (np == 1)  nx_plane = sp + 1;
 	else if (np == -1) nx_plane = sp - 1;
@@ -879,15 +884,48 @@ void SatRouteObject::pathcal(int sp, int sn, int dp, int dn, int np, int nn, dou
 	if (nn == 1) nx_num = sn + 1 > 10 ? 0 : sn + 1;
 	else if (nn == -1) nx_num = sn - 1 < 0 ? 10 : sn - 1;
 	else nx_num = sn;
-
 	if(sp == dp && sn == dn){
-		
+		/*
+		cout<<"Find a path with delay="<<delay<<" pplr= "<<1-pplr<<endl;
+		for(int i = 0; i < path.size(); i++){
+			cout<<path[i]<<"->";		
+		}
+		cout<<endl;
+		*/
+		delays.push_back(delay);
+		pplrs.push_back(1-pplr);
+		paths.push_back(path);
+		return;
 	}	
 	if (sp != dp){
-
+		if(ADJ(sp*11+sn+1, nx_plane*11+sn+1) == SAT_ROUTE_INFINITY){ 
+			//cout<<"Link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<" doesn't exists."<<endl;
+			//dump();
+		} else {
+			path.push_back(nx_plane*11+sn);
+			pplr *= (1-getPlr(sp*11+sn+1, nx_plane*11+sn+1));
+			delay += ADJ(sp*11+sn+1, nx_plane*11+sn+1);
+			//cout<<"Find link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<endl;
+			pathcal(nx_plane, sn, dp, dn, np, nn, pplr, delay, path, pplrs, delays, paths);
+			pplr /= (1-getPlr(sp*11+sn+1, nx_plane*11+sn+1));
+			delay -= ADJ(sp*11+sn+1, nx_plane*11+sn+1);
+			path.pop_back();
+		}
 	}
 	if (sn != dn){
-
+		if(ADJ(sp*11+sn+1, sp*11+nx_num+1) == SAT_ROUTE_INFINITY) {
+			//cout<<"Link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<" doesn't exists."<<endl;
+			//dump();
+		} else {
+			path.push_back(sp*11+nx_num);
+			pplr *= (1-getPlr(sp*11+sn+1, sp*11+nx_num+1));
+			delay += ADJ(sp*11+sn+1, sp*11+nx_num+1);
+			//cout<<"Find link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<endl;
+			pathcal(sp, nx_num, dp, dn, np, nn, pplr, delay, path, pplrs, delays, paths);
+			pplr /= (1-getPlr(sp*11+sn+1, sp*11+nx_num+1));
+			delay -= ADJ(sp*11+sn+1, sp*11+nx_num+1);
+			path.pop_back();
+		}
 	}
 }
 
@@ -903,15 +941,59 @@ void SatRouteObject::cct_routes(){
 		int dp = coop_index/11, dn = coop_index % 11;
 		int np = SatRouteAgent::instance().next_plane(sp, dp);
 		int nn = SatRouteAgent::instance().next_num(sn, dn);
-		//cout<<"ddd: "<<coop_index<<",dp="<<dp<<",dn="<<dn<<",source="<<source<<",sp="<<sp<<" sn="<<sn<<",np="<<np<<",nn="<<nn<<endl;
+		//cout<<"coop= "<<coop_index<<",dp="<<dp<<",dn="<<dn<<"// source="<<source<<",sp="<<sp<<" sn="<<sn<<",np="<<np<<",nn="<<nn<<endl;
 		//candidate path calculation
 		vector<vector<int> > paths;
 		vector<double> delays;
-		pathcal(sp, sn, dp, dn, np, nn, 0.9, delays, paths);
-
+		vector<double> pplrs;
+		vector<int> cand_path;
+		vector<int> f_path;
+		cand_path.push_back(source);
+		pathcal(sp, sn, dp, dn, np, nn, 1, 0, cand_path, pplrs, delays, paths);
+		f_path = rr_seletion(pplrs, delays, paths, dest);
+		cout<<"Find a path with minimal delay: "<<endl;	
+		for(int i = 0; i < f_path.size(); i++){
+			cout<<f_path[i]<<"->";	
+		}
+		cout<<endl;
 		//populate route tables
 		
+		
 	}
+}
+
+
+vector<int> SatRouteObject::rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest)
+{
+	vector<int> res;
+	vector<vector<int> > cpaths;
+	int index;
+	double minplr = 9999;
+	double mdelay = 9999;
+	int index_delay;
+	for(int i = 0; i < paths.size(); i++){
+		if(pplrs[i] < minplr){
+			index = i;
+			minplr = pplrs[i];
+		}
+		if(pplrs[i] < plrthr){
+			cpaths.push_back(paths[i]);
+		}
+	}
+	if(minplr > plrthr) {  // if the path satisfy plr does not exists.
+		cout<<" Select the path with minimal plr="<<minplr<<endl;
+		return paths[index];
+	} else { //select a path from cpaths	 	
+		for(int i = 0; i < cpaths.size(); i++){
+			if(delays[i] < mdelay){
+				index_delay = i;
+				mdelay = delays[i];
+			}
+		}
+	}
+	res = cpaths[index_delay];
+	res.push_back(dest);
+	return res;
 }
 
 void SatRouteObject::compute_routes()

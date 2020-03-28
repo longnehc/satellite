@@ -4,7 +4,7 @@
 using namespace std;
 //g++ -Wall plrg.c -o plrg
 //1%-5%
-
+//1%-2%
 int main()
 {
        	ofstream out;
@@ -13,7 +13,7 @@ int main()
 	for(int i = 1; i <= 66; i++){
 		for(int j = i + 1; j <= 66; j++){
 			double x = (double)rand()/RAND_MAX;
-			out << (x * 4000 + 1000)/100000<<endl;
+			out << (x * 1000 + 1000)/100000<<endl;
 		}
 	}
 	return 0;
