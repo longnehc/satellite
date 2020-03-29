@@ -111,7 +111,6 @@ SatRouteAgent::SatRouteAgent (): Agent (PT_MESSAGE), maxslot_(0), nslot_(0), slo
 {
 	bind ("myaddr_", &myaddr_);
 	bind("latitude_threshold_", &latitude_threshold_);
-	//cout<<"AGENT INIT"<<endl;
 }
 
 SatRouteAgent* SatRouteAgent::instance_;
@@ -233,7 +232,7 @@ bool SatRouteAgent::isconnected(int myaddr, int dst){
 
 //from and to range from 1- 66
 bool SatRouteAgent::droppacket(int from, int to){
-	//return false; 		//droppacket switch
+	//return false; 		//drop packet switch
 	srand((int)time(0));
 	double x = (double)rand()/RAND_MAX;
 	double y = SatRouteObject::instance().getPlr(from, to);
@@ -245,11 +244,13 @@ bool SatRouteAgent::droppacket(int from, int to){
 		return false;  
 }
 
+
+
 /*
  *  Find a target for the received packet
  */
 
-bool dct_enabled = true;
+ 
 
 void SatRouteAgent::forwardPacket(Packet * p)
 {
@@ -301,17 +302,22 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
 		int nxhop;
 
-		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY) {nxhop = dst; cout<<"reach destination: "<<dst<<endl;}
+		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY) {
+			nxhop = dst; 
+			//cout<<"reach destination: "<<dst<<endl;
+		}
 		else{
 			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
-			if(dct_enabled)
+			if(SatRouteObject::instance().get_dra() == 1)
 				nxhop = dra_routes(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
-			cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
+			else if (SatRouteObject::instance().get_dct() == 1)
+				nxhop = dct_routes(myaddr_, coop_index, lasthop);
+			//cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
 		if(droppacket(myaddr_+1, nxhop+1)){ 
-			cout<<"The packet is droped from "<<myaddr_<<" to "<<nxhop<<endl;;
+			//cout<<"The packet is droped from "<<myaddr_<<" to "<<nxhop<<endl;;
 			return;
 		}
 		
@@ -397,6 +403,76 @@ int SatRouteAgent::next_num(int sn, int dn)
 }
 
 //myaddr,dst, nxhop ranges from 0-65
+int SatRouteAgent::dct_routes(int myaddr, int dst, int lasthop){
+	adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
+	int size = 128;		
+        #define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
+	#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
+	int sp = myaddr/11, sn = myaddr % 11;
+	int dp = dst/11, dn = dst % 11;
+	int np = next_plane(sp, dp);
+	int nn = next_num(sn, dn);
+	int nplane = sp, nnum = sn, nnum3 = sn;
+	bool sameindex = false;
+	int nh1, nh2, nh3;
+	int res;
+        if(nn == 1) nnum = (sn + 1 > 10) ? 0 : sn + 1;
+	else if (nn == -1) nnum = (sn - 1 < 0) ? 10 : sn -1;
+	if(np == 1) nplane = (sp + 1 > 5) ? 0 : sp + 1;
+	else if (np == -1) nplane = (sp - 1 > 0) ? 5 : sp - 1;
+	if(np == 0){
+	    if(nn == 1 || nn == -1){
+		//cout<<"Find link with same plane from "<< myaddr <<" to "<<11 * sp + nnum<<endl;	
+		return 11 * sp + nnum;
+	     } 
+	    else {cout<<"myaddr and dst is the same node "<<dst<<","<<dp<<","<<dn<<","<<myaddr<<","<<sp<<","<<sn<<" nn="<<nn<<endl; exit(1);}	
+	}
+        if(nn == 0) { nh1 = nplane * 11 + sn; }
+	//if(myaddr == 0 && dst == 24) cout<<"ddddd: "<<dp<<" dn="<<dn<<","<<myaddr<<","<<sp<<" sn="<<sn<<"nn="<<nn<<"np="<<np<<"nplane="<<nplane<<" nh1="<<nh1<<endl;
+        else {
+		nh1 = nplane * 11 + sn; 
+		nh2 = sp * 11 + nnum;
+		if(nn ==1) nnum3 = (sn - 1 < 0) ? 10 : sn -1;
+		else nnum3 = (sn + 1 > 10) ? 0 : sn + 1;
+		nh3 = sp * 11 + nnum3;
+	}
+	bool find = false;
+	//dump(pubadj_); 
+        if(nn == 0){			
+		if(ADJ2(myaddr+1, nh1+1)!=SAT_ROUTE_INFINITY){
+			//cout<<"Find link with same index from "<< myaddr <<" to "<<nh1<<" cost= "<<ADJ2(myaddr+1, nh1+1)<<" NOW="<<NOW<<endl;	
+			return nh1;
+		} else {
+			//cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
+			return (myaddr + 1 > 10) ? 0 : myaddr+1;
+			dump(pubadj_);exit(1);
+		}
+	}
+	else {		
+		double delay1 = ADJ2(myaddr+1, nh1+1);
+		double delay2 = ADJ2(myaddr+1, nh2+1);		//TODO:consider plr and queuing delay
+		if(nh2 == lasthop && delay1 != SAT_ROUTE_INFINITY) {
+			res = nh1;
+			//cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
+		}
+		else if (nh2 == lasthop && delay1 == SAT_ROUTE_INFINITY)	{
+			res = nh3;
+			//cout<<"Exist loop. Detour from "<< myaddr <<" to "<<nh3<<" NOW="<<NOW<<endl;
+		} else {
+			if(delay1 > delay2) {
+			res = nh2; 
+			//cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			}
+			else {
+			res = nh1; 
+			//cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			}
+		}
+	}
+	return res;
+}
+
+//myaddr,dst, nxhop ranges from 0-65
 int SatRouteAgent::dra_routes(int myaddr, int dst, int lasthop){
 	adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
 	int size = 128;		
@@ -416,7 +492,7 @@ int SatRouteAgent::dra_routes(int myaddr, int dst, int lasthop){
 	else if (np == -1) nplane = (sp - 1 > 0) ? 5 : sp - 1;
 	if(np == 0){
 	    if(nn == 1 || nn == -1){
-		cout<<"Find link with same plane from "<< myaddr <<" to "<<11 * sp + nnum<<endl;	
+		//cout<<"Find link with same plane from "<< myaddr <<" to "<<11 * sp + nnum<<endl;	
 		return 11 * sp + nnum;
 	     } 
 	    else {cout<<"myaddr and dst is the same node "<<dst<<","<<dp<<","<<dn<<","<<myaddr<<","<<sp<<","<<sn<<" nn="<<nn<<endl; exit(1);}	
@@ -434,10 +510,10 @@ int SatRouteAgent::dra_routes(int myaddr, int dst, int lasthop){
 	//dump(pubadj_); 
         if(nn == 0){			
 		if(ADJ2(myaddr+1, nh1+1)!=SAT_ROUTE_INFINITY){
-			cout<<"Find link with same index from "<< myaddr <<" to "<<nh1<<" cost= "<<ADJ2(myaddr+1, nh1+1)<<" NOW="<<NOW<<endl;	
+			//cout<<"Find link with same index from "<< myaddr <<" to "<<nh1<<" cost= "<<ADJ2(myaddr+1, nh1+1)<<" NOW="<<NOW<<endl;	
 			return nh1;
 		} else {
-			cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
+			//cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
 			return (myaddr + 1 > 10) ? 0 : myaddr+1;
 			dump(pubadj_);exit(1);
 		}
@@ -447,24 +523,26 @@ int SatRouteAgent::dra_routes(int myaddr, int dst, int lasthop){
 		double delay2 = ADJ2(myaddr+1, nh2+1);
 		if(nh2 == lasthop && delay1 != SAT_ROUTE_INFINITY) {
 			res = nh1;
-			cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
+			//cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
 		}
 		else if (nh2 == lasthop && delay1 == SAT_ROUTE_INFINITY)	{
 			res = nh3;
-			cout<<"Exist loop. Detour from "<< myaddr <<" to "<<nh3<<" NOW="<<NOW<<endl;
+			//cout<<"Exist loop. Detour from "<< myaddr <<" to "<<nh3<<" NOW="<<NOW<<endl;
 		} else {
 			if(delay1 > delay2) {
 			res = nh2; 
-			cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			//cout<<"Find link from "<< myaddr <<" to "<<nh2<<" cost= "<<delay2<<"<"<<delay1<<" of "<<nh1<<" NOW="<<NOW<<" last "<<lasthop<<endl;
 			}
 			else {
 			res = nh1; 
-			cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<" last "<<lasthop<<endl;
+			//cout<<"Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<"<"<<delay2<<" of "<<nh2<<" NOW="<<NOW<<" last "<<lasthop<<endl;
 			}
 		}
 	}
 	return res;
 }
+
+ 
 
 //###########################################################################
 
@@ -491,12 +569,27 @@ void SatRouteObject::profile_test(){
 	}
 
 }
+bool dct=true;
+
+int SatRouteObject::get_dct(){
+	return dct_enabled;
+}
+
+
+int SatRouteObject::get_dra(){
+	return dra_enabled;
+}
 
 SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_(this)
 {
+	//cout<<"Construction.";
 	bind_bool("wiredRouting_", &wiredRouting_);
 	bind_bool("metric_delay_", &metric_delay_);
 	bind_bool("data_driven_computation_", &data_driven_computation_);
+	bind_bool("cct_enabled", &cct_enabled);
+	bind_bool("tlr_enabled", &tlr_enabled);
+	bind_bool("dct_enabled", &dct_enabled);
+	bind_bool("dra_enabled", &dra_enabled);
 	bind("islbw", &islbw);
 	bind("frate", &frate);
 	bind_bool("psize", &psize);
@@ -504,17 +597,20 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	route_timer_.sched(1);
 	load_coopprofile();
 	load_plr();
-        src = {6};
-	cct_enabled = false;
-	//cct_enabled = false;
-	tlr_enabled = true;
+        src = {6}; 
 	plrthr = 0.1;
 	//profile_test();
-	if(cct_enabled && tlr_enabled) { cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);}
-	if (SatNode::dist_routing_ == 1 && dct_enabled) cout<<"dct rouing model."<<endl;
-	else if(SatNode::dist_routing_ == 1 && !dct_enabled) cout<<"dra rouing model."<<endl;
-	else if (SatNode::dist_routing_ == 0 && cct_enabled) cout<<"cct routing model."<<endl;
-	else if (SatNode::dist_routing_ == 0 && tlr_enabled) cout<<"tlr routing model"<<endl;
+	if(cct_enabled == 1 && tlr_enabled == 1) { 
+		cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);
+		cout<<"1";	
+	}
+	if(dct_enabled==1 && dra_enabled==1){cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);}
+	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct rouing model."<<endl;
+	cout<<"2";}
+	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra rouing model."<<endl;
+	cout<<"3";}
+	else if (SatNode::dist_routing_ == 0 && cct_enabled == 1) cout<<"cct routing model."<<endl;
+	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 1) cout<<"tlr routing model"<<endl;
 	//cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
 }
 
@@ -657,20 +753,20 @@ void SatRouteObject::recompute()
 		if (wiredRouting_) {
 			Tcl::instance().evalf("[Simulator instance] compute-flat-routes");
 		} else {
-			if(!cct_enabled && !tlr_enabled)
+			if(cct_enabled == 0 && tlr_enabled == 0)
 				compute_routes(); // base class function
-			else if (cct_enabled)
+			else if (cct_enabled == 1)
 				cct_routes();
-			else if (tlr_enabled)
+			else if (tlr_enabled == 1)
 				tlr_routes();
 		}
-		if(!cct_enabled && !tlr_enabled)
+		if(cct_enabled == 0 && tlr_enabled == 0)
 			populate_routing_tables();
-	}// else if (SatNode::dist_routing_ == 1) compute_topology();
+	}
 }
 
 
-
+//node1,node2 ranges from 1-66
 double SatRouteObject::node_load(int node1, int node2) {
 	double res = 0;
 	Phy *phytxp, *phyrxp;
@@ -681,7 +777,7 @@ double SatRouteObject::node_load(int node1, int node2) {
 	int total_length = 0, actual_length = 0;
 	bool find = false;
 		for (; nodep; nodep = (SatNode*) nodep->nextnode()) {
-			if(nodep->address() == node1){		//compute_route's parameter starts from 0
+			if(nodep->address() + 1 == node1){		//compute_route's parameter starts from 0
 				for (slhp = (SatLinkHead*) nodep->linklisthead().lh_first; slhp;
 						  slhp = (SatLinkHead*) slhp->nextlinkhead()) {
 					if(slhp->type() == LINK_ISL_INTERPLANE
@@ -691,7 +787,7 @@ double SatRouteObject::node_load(int node1, int node2) {
 					channelp = phytxp->channel();
 					phyrxp = channelp->ifhead_.lh_first;
 					recvnode = (SatNode*) phyrxp->node();
-						if(recvnode->address() == node2){
+						if(recvnode->address() + 1 == node2){
 						//	std::cout<<"find: "<<node1 <<" to: "<< recvnode->address() + 1 <<" node2: "<< node2 << std::endl;
 							if(slhp->queue()->limit() == 0) return 1;
 						//	res = (double)slhp->queue()->length()/(double)slhp->queue()->limit();
@@ -1049,9 +1145,11 @@ void SatRouteObject::tlr_routes(){
 void SatRouteObject::cct_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
+	cout<<"cct"<<endl;
+	int dest = 67;		// the earth station in xi chang
 	for(int i = 0; i < src.size(); i++){
 		int source = src[i];
-		int dest = 67;		// the earth station in xi chang
+		
 		int coop_index = SatRouteAgent::instance().coop_selection(dest);           //coop_index ranges from 0-65;TODO:cctroutes selection 
 		//compute the routes from source to coop_index
 		int sp = source/11, sn = source % 11;
@@ -1068,8 +1166,11 @@ void SatRouteObject::cct_routes(){
 		cand_path.push_back(source);
 		cctpathcal(sp, sn, dp, dn, np, nn, 1, 0, cand_path, pplrs, delays, paths);
 		f_path = rr_seletion(pplrs, delays, paths, dest);
+//	}
+	//populate route tables
+//	for(int i = 0; i < src.size(); i++){
+//		vector<int> f_path; //==map[src[i]];
 		map<int, int> mpath;
-		//populate route tables
 		//cout<<"Find a path with minimal delay: "<<endl;	
 		for(int i = 0; i < f_path.size() - 1; i++){
 		//	cout<<f_path[i]<<"->";
@@ -1077,7 +1178,6 @@ void SatRouteObject::cct_routes(){
 		}
 		mpath[f_path[f_path.size()-1]] = dest;	
 		//cout<<f_path[f_path.size()-1]<<endl;
-		
 		NsObject *target;
 		SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
 		for (; snodep; snodep = (SatNode*) snodep->nextnode()) {

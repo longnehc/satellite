@@ -78,6 +78,7 @@ public:
   SatNode* node() { return node_; }
   int myaddr() {return myaddr_; }
   int dra_routes(int myaddr, int dst, int lasthop);
+  int dct_routes(int myaddr, int dst, int lasthop);
   bool isconnected(int myaddr, int dst);
   int next_plane(int sp, int dp);
   int next_num(int sn, int dn); 
@@ -88,7 +89,7 @@ protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
   
-
+  
   int myaddr_;           // My address-- set from OTcl
 
   // centralized routing stuff
@@ -99,6 +100,7 @@ protected:
   SatNode* node_;
   static double latitude_threshold_;
   static SatRouteAgent*  instance_;
+
 
 };
 
@@ -144,11 +146,12 @@ public:
   adj_entry* getAdj();
   void compute_topology();
   double node_load(int node1, int node2);
-  int next_plane(int sp, int dp);
-  int next_num(int sn, int dn); 
   void cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths);
   vector<int> rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest);
   void tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, double delay, double mdelay, vector<int> path, vector<int>&tpath);	
+
+  int get_dct();
+  int get_dra();
 protected:
   
   void populate_routing_tables(int node = -1);
@@ -170,8 +173,11 @@ protected:
   int psize;
   double plrthr;
   vector<int> src;
-  bool cct_enabled;
-  bool tlr_enabled;
+  int cct_enabled;
+  int tlr_enabled;
+  int dct_enabled;
+  int dra_enabled;
+
 };
 
 #endif
