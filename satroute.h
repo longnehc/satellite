@@ -84,7 +84,7 @@ public:
   int next_num(int sn, int dn); 
   bool droppacket(int from, int  to); 
   void dump(adj_entry* pubadj_);
-  int coop_selection(int dst);
+  int dct_coop_selection(int dst);
 protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
@@ -147,9 +147,11 @@ public:
   void compute_topology();
   double node_load(int node1, int node2);
   void cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, double pplr, double delay, vector<int>&path, vector<double>& pplrs, vector<double>& delays, vector<vector<int> >& paths);
-  vector<int> rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest);
+  map<int, int> cct_coop_selection(vector<int> src, int dest);
+  map<int, vector<int> > rr_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+map<int, vector<vector<int> > > candidate_paths);
   void tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, double delay, double mdelay, vector<int> path, vector<int>&tpath);	
-
+  int tlr_coop_selection(int dest);
   int get_dct();
   int get_dra();
 protected:

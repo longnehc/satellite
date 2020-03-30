@@ -176,7 +176,7 @@ int SatRouteAgent::command (int argc, const char *const *argv)
 }
 
 //dst ranges from >= 66; return value ranges from 0-65
-int SatRouteAgent::coop_selection(int dst){
+int SatRouteAgent::dct_coop_selection(int dst){
 	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
 	int t_dst = dst + 1;
 	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop to "<<t_dst<<" does not exists at "<<NOW<<endl;}
@@ -223,6 +223,7 @@ cout<<endl;
 	//cout<<"find final: "<<res-1<<endl;
 	return res-1;
 }
+
 //myaddr,dst ranges from 0-65
 bool SatRouteAgent::isconnected(int myaddr, int dst){
 	bool res = false;
@@ -307,7 +308,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			//cout<<"reach destination: "<<dst<<endl;
 		}
 		else{
-			int coop_index = coop_selection(dst);			//coop_index ranges from 0-65
+			int coop_index = dct_coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
 			if(SatRouteObject::instance().get_dra() == 1)
 				nxhop = dra_routes(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
@@ -569,10 +570,39 @@ SatRouteObject* SatRouteObject::instance_;
 void SatRouteObject::profile_test(){
 	vector<double> tv = coopprofile[68][35]; 
 	for(int i = 0; i < tv.size(); i++){
-		cout<<tv[i]<<endl;
+		cout<<"2:"<<tv[i]<<endl;
+	} 
+	/*
+	map<int, vector<double> > tm = coopprofile[68];
+	for(int k = 1; k < 86390; k++){
+		vector<int> node;
+		vector<int> start;
+		vector<int> end;
+		for(int i = 1; i <=66; i++){
+			if(tm.find(i) != tm.end()){
+				vector<double>tv = tm[i]; 
+				for(int j = 0; j < tv.size(); j = j + 2){ 
+					if(tv[j] <= k && j + 1 <tv.size()){
+					     if(tv[j+1] < k) continue;
+					     else {
+						node.push_back(i);
+ 						start.push_back(tv[j]); 
+						end.push_back(tv[j+1]); 
+						break;
+						}					     
+					}
+				}
+			}
+		}
+		if(node.size() > 1) {
+			for(int kk = 0; kk < node.size(); kk++)
+				cout<<"ES connect to node "<<node[kk]<<" at "<<k<<" from "<<start[kk]<<" to "<<end[kk]<<endl;
+		}
+		//if(node.size() == 1) cout <<"Find "<<node[0]<<" to "<<68<<endl;
 	}
-
+	*/
 }
+
 bool dct=true;
 
 int SatRouteObject::get_dct(){
@@ -601,18 +631,16 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	route_timer_.sched(1);
 	load_coopprofile();
 	load_plr();
-        src = {6}; 
+        src = {6}; 		//src from 0-65
 	plrthr = 0.1;
-	//profile_test();
+	profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
 		cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);
 		cout<<"1";	
 	}
 	if(dct_enabled==1 && dra_enabled==1){cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);}
-	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct rouing model."<<endl;
-	cout<<"2";}
-	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra rouing model."<<endl;
-	cout<<"3";}
+	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct rouing model."<<endl;}
+	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra rouing model."<<endl;}
 	else if (SatNode::dist_routing_ == 0 && cct_enabled == 1) cout<<"cct routing model."<<endl;
 	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 1) cout<<"tlr routing model"<<endl;
 	//cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
@@ -985,6 +1013,7 @@ void SatRouteObject::dump()
 		if (adj_[i].cost != SAT_ROUTE_INFINITY) {
 			src = i / size_ - 1;
 			dst = i % size_ - 1;
+			if(src == 67 || dst== 67)
 			printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
 			//cout<<ADJ(7,18)<<endl;
 		}
@@ -1099,13 +1128,14 @@ void SatRouteObject::cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 	}
 }
 
+
 void SatRouteObject::tlr_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 	for(int i = 0; i < src.size(); i++){
 		int source = src[i];
 		int dest = 67;		// the earth station in xi chang
-		int coop_index = SatRouteAgent::instance().coop_selection(dest);  //coop_index ranges from 0-65;TODO:tlrcoopselection 
+		int coop_index = tlr_coop_selection(dest);  //coop_index ranges from 0-65;
 		//compute the routes from source to coop_index
 		int sp = source/11, sn = source % 11;
 		int dp = coop_index/11, dn = coop_index % 11;
@@ -1150,10 +1180,19 @@ void SatRouteObject::cct_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 	int dest = 67;		// the earth station in xi chang
+	map<int, int> coopmap;	//first:source index, second: coop index
+	map<int, vector<vector<int> > > candidate_paths;
+	map<int, vector<double> > candidate_pathdelays;
+	map<int, vector<double> > candidate_pathplrs;
+	map<int, vector<int> > final_paths;
+	//calculate the cooperation node for all sources first
+	coopmap = cct_coop_selection(src, dest);           //coop_index ranges from 0-65;
+	//cout<<"calculate the candidate paths for all sources"<<endl;
 	for(int i = 0; i < src.size(); i++){
 		int source = src[i];
-		int coop_index = SatRouteAgent::instance().coop_selection(dest);           //coop_index ranges from 0-65;TODO:cctroutes selection 
-		//compute the routes from source to coop_index
+		//int coop_index = dct_coop_selection(dest);           //coop_index ranges from 0-65;
+		if(coopmap.find(source) == coopmap.end()){cout<<"coop not found for source="<<source<<endl; exit(1);}
+		int coop_index = coopmap[source];
 		int sp = source/11, sn = source % 11;
 		int dp = coop_index/11, dn = coop_index % 11;
 		int np = SatRouteAgent::instance().next_plane(sp, dp);
@@ -1167,11 +1206,17 @@ void SatRouteObject::cct_routes(){
 		vector<int> f_path;
 		cand_path.push_back(source);
 		cctpathcal(sp, sn, dp, dn, np, nn, 1, 0, cand_path, pplrs, delays, paths);
-		f_path = rr_seletion(pplrs, delays, paths, dest);
-//	}
-	//populate route tables
-//	for(int i = 0; i < src.size(); i++){
-//		vector<int> f_path; //==map[src[i]];
+		candidate_paths[source] = paths;
+		candidate_pathplrs[source] = pplrs;
+		candidate_pathdelays[source] = delays;
+		//f_path = rr_selection(pplrs, delays, paths, dest);
+	}
+	//cout<<"rr_selection returns the path for all sources"<<endl;
+	final_paths = rr_selection(candidate_pathplrs, candidate_pathdelays, candidate_paths);
+	//cout<<"populate route tables"<<endl;
+	for(int j = 0; j < src.size(); j++){
+		if (final_paths.find(src[j]) == final_paths.end()) {cout<<"paths not found for source="<<src[j]<<endl; exit(1);}
+		vector<int> f_path = final_paths[src[j]]; 
 		map<int, int> mpath;
 		//cout<<"Find a path with minimal delay: "<<endl;	
 		for(int i = 0; i < f_path.size() - 1; i++){
@@ -1199,38 +1244,115 @@ void SatRouteObject::cct_routes(){
 	}
 }
 
+int SatRouteObject::tlr_coop_selection(int dst){
+	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
+	int t_dst = dst + 1;
+	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop to "<<t_dst<<" does not exists at "<<NOW<<endl;}
+	map<int, vector<double> > tm = coopprofile[t_dst];
+	double cur = NOW;
+	int res=0;
+	double maxcost = 999999999;      //record variable
+	for(int i = 1; i <=66; i++){
+		if(tm.find(i) != tm.end()){
+			vector<double>tv = tm[i]; 
+                        for(int j = 0; j < tv.size(); j = j + 2){ 
+				if(tv[j] <= cur && j + 1 <tv.size()){
+				     if(tv[j+1] < cur) continue;
+					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
+				     else{
+					cout <<"Find "<<i-1<<" to "<<t_dst-1<<" with cost= "<<ADJ(i, t_dst)<<" from "<<tv[j]<<" to "<<tv[j+1]<<" at "<<cur<<endl;
+					if(ADJ(i, t_dst) < maxcost){
+						maxcost = ADJ(i, t_dst);
+						res = i;
+					}
+					break;
+				     }
+				}
+			}
+			
+		}
+        }
+	if(res == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);}
+	//cout<<"find final: "<<res<<endl;
+	return res-1;
+}
 
-vector<int> SatRouteObject::rr_seletion(vector<double> pplrs, vector<double> delays, vector<vector<int> > paths, int dest)
-{
-	vector<int> res;
-	vector<vector<int> > cpaths;
-	int index;
-	double minplr = 9999;
-	double mdelay = 9999;
-	int index_delay;
-	for(int i = 0; i < paths.size(); i++){
-		if(pplrs[i] < minplr){
-			index = i;
-			minplr = pplrs[i];
-		}
-		if(pplrs[i] < plrthr){
-			cpaths.push_back(paths[i]);
-		}
-	}
-	if(minplr > plrthr) {  // if the path satisfy plr does not exists.
-		//cout<<" Select the path with minimal plr="<<minplr<<endl;
-		return paths[index];
-	} else { //select a path from cpaths	 	
-		for(int i = 0; i < cpaths.size(); i++){
-			if(delays[i] < mdelay){
-				index_delay = i;
-				mdelay = delays[i];
+map<int, int> SatRouteObject::cct_coop_selection(vector<int> src, int dest){
+	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
+	int t_dst = dest + 1;
+	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop to "<<t_dst<<" does not exists at "<<NOW<<endl;}
+	double cur = NOW;
+	map<int, int> mres;
+	map<int, vector<double> > tm = coopprofile[t_dst];
+	vector<int> avaicoop;
+	for(int i = 1; i <=66; i++){
+		if(tm.find(i) != tm.end()){
+			vector<double>tv = tm[i]; 
+		               for(int j = 0; j < tv.size(); j = j + 2){
+				  if(tv[j] <= cur && j + 1 <tv.size()){
+				     if(tv[j+1] < cur) continue;
+					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
+				     else{avaicoop.push_back(i); break;}
+				   }
+				}
+				
 			}
 		}
+		if(avaicoop.size() == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);
 	}
-	res = cpaths[index_delay];
-	res.push_back(dest);
-	return res;
+	int cindex = 0;		 
+	for(int i = 0; i < src.size(); i++){
+		mres[src[i]] = avaicoop[cindex] - 1;	//coop ranges from 0 to 65
+		if(cindex + 1 == avaicoop.size()) cindex = 0;
+		else cindex++;
+	}
+	return mres;
+}
+
+map<int, vector<int> > SatRouteObject::rr_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+map<int, vector<vector<int> > > candidate_paths)
+{
+	map<int, vector<int> > mres;
+	for(int j = 0; j < src.size(); j++){
+		vector<int> res;
+		vector<vector<int> > cpaths;
+		int index;
+		double minplr = 9999;
+		double mdelay = 9999;
+		if(candidate_paths.find(src[j]) == candidate_paths.end()){cout<<"paths doesn't exists source = "<<src[j]<<endl;;exit(1);}
+		if(candidate_pathplrs.find(src[j]) == candidate_pathplrs.end()){cout<<"plrs doesn't exists source = "<<src[j]<<endl;;exit(1);}
+		if(candidate_pathdelays.find(src[j]) == candidate_pathdelays.end()){cout<<"delays doesn't exists source = "<<src[j]<<endl;;exit(1);}
+		vector<vector<int> > paths = candidate_paths[src[j]];
+		vector<double> pplrs = candidate_pathplrs[src[j]];
+		vector<double> delays = candidate_pathdelays[src[j]];
+		int index_delay = 0;
+		//cout<<"1"<<endl;
+		for(int i = 0; i < paths.size(); i++){
+			if(pplrs[i] < minplr){
+				index = i;
+				minplr = pplrs[i];
+			}
+			if(pplrs[i] < plrthr){
+				cpaths.push_back(paths[i]);
+			}
+		}
+		if(minplr > plrthr) {  // if the path satisfy plr does not exists.
+			//cout<<" Select the path with minimal plr="<<minplr<<endl;
+			mres[src[j]] = paths[index];
+		} else { //select a path from cpaths	 	
+			for(int i = 0; i < cpaths.size(); i++){
+				if(delays[i] < mdelay){
+					index_delay = i;
+					mdelay = delays[i];
+				}
+			}
+			//cout<<"1"<<endl;
+			res = cpaths[index_delay];
+			mres[src[j]] = res;	
+		}
+			
+	} 
+	return mres;
 }
 
 void SatRouteObject::compute_routes()
