@@ -51,6 +51,9 @@ static const char rcsid[] =
 #include <fstream>
 using namespace std;
 
+
+map<int, map<int, vector<double> > > coopprofile;
+
 static class LinkHandoffMgrClass : public TclClass {
 public:
         LinkHandoffMgrClass() : TclClass("HandoffManager") {}
@@ -227,7 +230,8 @@ TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this),dump_timer_(this)
 {
 	bind("elevation_mask_", &elevation_mask_);
 	bind("term_handoff_int_", &term_handoff_int_);
-	dump_timer_.sched(1);    //switch to record cooperation node profile 
+	dump_timer_.sched(1);    //switch to record cooperation node profile
+	cout<<"INIT!!!!!!!!!!!"<<endl; 
 }
 
 // 
@@ -239,12 +243,12 @@ TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this),dump_timer_(this)
 // If there are any changes, call for rerouting.  Finally, restart the timer. 
 //
 
-
+/*
 map<int, map<int, vector<double> > > TermLinkHandoffMgr::getCoop() 
 {
 	return coopprofile;
 }   
-
+*/
 void TermLinkHandoffMgr::addCoop(int dst, int coop, double time){
 	//dst: earth station; coop: cooperation node; time: establish-destroy.
 	map<int, vector<double> > tm;
@@ -268,6 +272,13 @@ void TermLinkHandoffMgr::addCoop(int dst, int coop, double time){
 		tm[coop] = tv;
 		coopprofile[dst] = tm;	
 	}
+//	vector<double> tv1 = coopprofile[68][35]; 
+//	cout<<"eeeeeeeeee"<<tv1.size()<<endl;
+/*
+	for(int i = 0; i < tv1.size(); i++){
+		cout<<"2:"<<tv1[i]<<endl;
+	} 
+*/
 }
 
 
@@ -293,7 +304,6 @@ void TermLinkHandoffMgr::storeCoop(){
 		}
 	} 
 	vector<double> tv = coopprofile[68][35]; 
-	cout<<"dddddddddd"<<tv.size()<<endl;
 	for(int i = 0; i < tv.size(); i++){
 		cout<<"1:"<<tv[i]<<endl;
 	} 
@@ -313,7 +323,7 @@ void TermLinkHandoffMgr::test(){
 	}
 }
 
-TermLinkHandoffMgr* TermLinkHandoffMgr::instance_;
+//TermLinkHandoffMgr* TermLinkHandoffMgr::instance_;
  
 int TermLinkHandoffMgr::handoff()
 {
@@ -361,8 +371,8 @@ int TermLinkHandoffMgr::handoff()
 				slhp->phy_tx()->setchnl(0);
 				slhp->phy_rx()->setchnl(0);
 				// wired-satellite integration	
-			      // 	if(slhp->phy_tx()->node()->address()+1==67 && peer_->address()+1==32) 
-			     //cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
+			    // 	if(slhp->phy_tx()->node()->address()+1==68 && peer_->address()+1 == 35) 
+			    // cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
 				//Initial case : NOW = 0, set by tcl
 				if(NOW!=0) { addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);}
 				if (SatRouteObject::instance().wiredRouting()) {
@@ -433,7 +443,8 @@ int TermLinkHandoffMgr::handoff()
 				slhp->phy_rx()->insertchnl(&(peer_->downlink()->ifhead_));
 				addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);
 				//if(peers.size() >1) exit(1);
-				//else cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
+				//if(slhp->phy_tx()->node()->address()+1==68 && peer_->address()+1 == 35) 				
+				//cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
 				
 			}
 			/*if(findpeer) {

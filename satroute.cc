@@ -568,10 +568,12 @@ static class SatRouteObjectClass:public TclClass
 SatRouteObject* SatRouteObject::instance_;
 
 void SatRouteObject::profile_test(){
-	vector<double> tv = coopprofile[68][35]; 
-	for(int i = 0; i < tv.size(); i++){
-		cout<<"2:"<<tv[i]<<endl;
-	} 
+	for(int i = 1; i <=66; i++){
+		vector<double> tv = coopprofile[68][35]; 
+		for(int i = 0; i < tv.size(); i++){
+			cout<<"2:"<<tv[i]<<endl;
+		} 
+	}
 	/*
 	map<int, vector<double> > tm = coopprofile[68];
 	for(int k = 1; k < 86390; k++){
@@ -633,7 +635,7 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	load_plr();
         src = {6}; 		//src from 0-65
 	plrthr = 0.1;
-	profile_test();
+	//profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
 		cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);
 		cout<<"1";	
@@ -1260,7 +1262,7 @@ int SatRouteObject::tlr_coop_selection(int dst){
 				     if(tv[j+1] < cur) continue;
 					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
 				     else{
-					cout <<"Find "<<i-1<<" to "<<t_dst-1<<" with cost= "<<ADJ(i, t_dst)<<" from "<<tv[j]<<" to "<<tv[j+1]<<" at "<<cur<<endl;
+					//cout <<"Find "<<i-1<<" to "<<t_dst-1<<" with cost= "<<ADJ(i, t_dst)<<" from "<<tv[j]<<" to "<<tv[j+1]<<" at "<<cur<<endl;
 					if(ADJ(i, t_dst) < maxcost){
 						maxcost = ADJ(i, t_dst);
 						res = i;
