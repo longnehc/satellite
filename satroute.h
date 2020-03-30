@@ -141,7 +141,7 @@ public:
   map<int, map<int, vector<double> > > get_coopprofile();
   map<int, map<int, vector<double> > >  coopprofile;
   double plr[128][128] ;
-  double getPlr(int from, int to);
+  double get_plr(int from, int to);
   void profile_test(); 
   adj_entry* getAdj();
   void compute_topology();

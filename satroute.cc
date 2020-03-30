@@ -235,7 +235,7 @@ bool SatRouteAgent::droppacket(int from, int to){
 	//return false; 		//drop packet switch
 	srand((int)time(0));
 	double x = (double)rand()/RAND_MAX;
-	double y = SatRouteObject::instance().getPlr(from, to);
+	double y = SatRouteObject::instance().get_plr(from, to);
 	if(x < y){
 		//cout<<"The packet is droped from "<<from-1<<" to "<<to-1<<" plr = "<<y<<endl;
 		return true;
@@ -449,8 +449,12 @@ int SatRouteAgent::dct_routes(int myaddr, int dst, int lasthop){
 		}
 	}
 	else {		
-		double delay1 = ADJ2(myaddr+1, nh1+1);
-		double delay2 = ADJ2(myaddr+1, nh2+1);		//TODO:consider plr and queuing delay
+		double plr1 = SatRouteObject::instance().get_plr(myaddr+1, nh1+1);
+		double plr2 = SatRouteObject::instance().get_plr(myaddr+1, nh2+1);
+		double qdelay1 = SatRouteObject::instance().node_load(myaddr+1, nh1+1);
+		double qdelay2 = SatRouteObject::instance().node_load(myaddr+1, nh2+1);
+		double delay1 = (ADJ2(myaddr+1, nh1+1) + qdelay1)/(1-plr1);
+		double delay2 = (ADJ2(myaddr+1, nh2+1) + qdelay2)/(1-plr2);		
 		if(nh2 == lasthop && delay1 != SAT_ROUTE_INFINITY) {
 			res = nh1;
 			//cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
@@ -631,8 +635,8 @@ void SatRouteObject::load_plr(){
 		}
 	}
 }
-
-double SatRouteObject::getPlr(int from, int to){
+//from and to ranges from 1-66
+double SatRouteObject::get_plr(int from, int to){
 	if(from < 0 || from > 127 || to < 0 || to > 127) {
 		cout<<"Invalid index. from = "<<from<<" to= "<<to<<endl;
 		exit(1);
@@ -1069,11 +1073,11 @@ void SatRouteObject::cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 			//dump();
 		} else {
 			path.push_back(nx_plane*11+sn);
-			pplr *= (1-getPlr(sp*11+sn+1, nx_plane*11+sn+1));
+			pplr *= (1-get_plr(sp*11+sn+1, nx_plane*11+sn+1));
 			delay += ADJ(sp*11+sn+1, nx_plane*11+sn+1);
 			//cout<<"Find link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<endl;
 			cctpathcal(nx_plane, sn, dp, dn, np, nn, pplr, delay, path, pplrs, delays, paths);
-			pplr /= (1-getPlr(sp*11+sn+1, nx_plane*11+sn+1));
+			pplr /= (1-get_plr(sp*11+sn+1, nx_plane*11+sn+1));
 			delay -= ADJ(sp*11+sn+1, nx_plane*11+sn+1);
 			path.pop_back();
 		}
@@ -1084,11 +1088,11 @@ void SatRouteObject::cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 			//dump();
 		} else {
 			path.push_back(sp*11+nx_num);
-			pplr *= (1-getPlr(sp*11+sn+1, sp*11+nx_num+1));
+			pplr *= (1-get_plr(sp*11+sn+1, sp*11+nx_num+1));
 			delay += ADJ(sp*11+sn+1, sp*11+nx_num+1);
 			//cout<<"Find link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<endl;
 			cctpathcal(sp, nx_num, dp, dn, np, nn, pplr, delay, path, pplrs, delays, paths);
-			pplr /= (1-getPlr(sp*11+sn+1, sp*11+nx_num+1));
+			pplr /= (1-get_plr(sp*11+sn+1, sp*11+nx_num+1));
 			delay -= ADJ(sp*11+sn+1, sp*11+nx_num+1);
 			path.pop_back();
 		}
@@ -1145,11 +1149,9 @@ void SatRouteObject::tlr_routes(){
 void SatRouteObject::cct_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
-	cout<<"cct"<<endl;
 	int dest = 67;		// the earth station in xi chang
 	for(int i = 0; i < src.size(); i++){
 		int source = src[i];
-		
 		int coop_index = SatRouteAgent::instance().coop_selection(dest);           //coop_index ranges from 0-65;TODO:cctroutes selection 
 		//compute the routes from source to coop_index
 		int sp = source/11, sn = source % 11;
@@ -1263,7 +1265,6 @@ void SatRouteObject::compute_routes()
 		/* set the route for all neighbours first */
 		for (v = 1; v < n; ++v) {
 			if (parent[v] != k) {
-				//TODO
 				//std::cout<<"naoguila:"<<k<<" 11 "<<v<<ADJ(1, 106)<<std::endl;
 				hopcnt[v] = ADJ(k, v);
 				//hopcnt[v] = SatRouteObject::hybridcost_[k][v];
