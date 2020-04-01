@@ -154,6 +154,11 @@ map<int, vector<vector<int> > > candidate_paths);
   int tlr_coop_selection(int dest);
   int get_dct();
   int get_dra();
+  void bminit();
+  double** islbwm;
+  map<int, vector<double**> > plinks; //path links; key = src, value = a set of 66 * 66 matrics
+  void build_plinks(map<int, vector<vector<int> > > candidate_paths);
+  void init_plinks();
 protected:
   
   void populate_routing_tables(int node = -1);
@@ -162,6 +167,8 @@ protected:
   void node_compute_routes(int node);
   void compute_routes();
   void cct_routes();
+  
+
   void tlr_routes();
   void dump(); // for debugging only
 
@@ -175,10 +182,12 @@ protected:
   int psize;
   double plrthr;
   vector<int> src;
+  map<int, double> ratemap;
   int cct_enabled;
   int tlr_enabled;
   int dct_enabled;
   int dra_enabled;
+ 
 
 };
 

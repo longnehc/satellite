@@ -231,7 +231,7 @@ TermLinkHandoffMgr::TermLinkHandoffMgr() : timer_(this),dump_timer_(this)
 	bind("elevation_mask_", &elevation_mask_);
 	bind("term_handoff_int_", &term_handoff_int_);
 	dump_timer_.sched(1);    //switch to record cooperation node profile
-	cout<<"INIT!!!!!!!!!!!"<<endl; 
+	//cout<<"INIT!!!!!!!!!!!"<<endl; 
 }
 
 // 
@@ -414,20 +414,21 @@ int TermLinkHandoffMgr::handoff()
 					sat_coord = 
 					    peer_->position()->coord();
 					found_elev_ = SatGeometry::check_elevation(sat_coord, earth_coord, mask_);
-					//if(found_elev_ > 0) { peers.push_back(peer_); findpeer = true;}
-					
+					if(found_elev_ > 0) { peers.push_back(peer_); findpeer = true;}
+					/*
 					if (found_elev_ > best_found_elev_) {
 					    best_peer_ = peer_;
 					    best_found_elev_ = found_elev_;
-					}
+					}*/
 				}
-				
+				/*
 				if (best_found_elev_ > 0.0) {
 					assert (best_peer_ != 0);
 					peer_ = best_peer_;
 					found_elev_ = best_found_elev_;
-				}
+				}*/
 			}
+			/*
 			if (found_elev_) {
 				slhp->linkup_ = TRUE;
 				link_changes_flag_ = TRUE;
@@ -446,8 +447,8 @@ int TermLinkHandoffMgr::handoff()
 				//if(slhp->phy_tx()->node()->address()+1==68 && peer_->address()+1 == 35) 				
 				//cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
 				
-			}
-			/*if(findpeer) {
+			}  */
+			if(findpeer) {
 				slhp->linkup_ = TRUE;
 				link_changes_flag_ = TRUE;
 				for(int i = 0; i < peers.size(); i++) {
@@ -462,10 +463,13 @@ int TermLinkHandoffMgr::handoff()
 					// Add phy to channel's linked list of i/fces
 					slhp->phy_rx()->insertchnl(&(tpeer->downlink()->ifhead_));
 					addCoop(slhp->phy_tx()->node()->address()+1,tpeer->address()+1, NOW);
-				  	if(peers.size() >1) exit(1);
+/*
+//TODO:find when exist 2, alter mask
+				  	if(peers.size() >1) {cout<<"???"<<NOW<<endl; exit(1);}
 					else cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<tpeer->address()<<" at "<<NOW<<endl;
+*/
 				}
-			}*/
+			}
 		}
 	}
 	if (link_changes_flag_) { 

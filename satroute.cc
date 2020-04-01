@@ -66,15 +66,15 @@ void test(){
   glp_set_obj_dir(lp, GLP_MAX);
   /* fill problem */
   glp_add_rows(lp, 2);
-  glp_set_row_name(lp, 1, "p");
+ // glp_set_row_name(lp, 1, "p");
   glp_set_row_bnds(lp, 1, GLP_UP, 0.0, 1.0);
-  glp_set_row_name(lp, 2, "q");
+ // glp_set_row_name(lp, 2, "q");
   glp_set_row_bnds(lp, 2, GLP_UP, 0.0, 2.0);
   glp_add_cols(lp, 2);
-  glp_set_col_name(lp, 1, "x1");
+ // glp_set_col_name(lp, 1, "x1");
   glp_set_col_bnds(lp, 1, GLP_LO, 0.0, 0.0);
   glp_set_obj_coef(lp, 1, 0.6);
-  glp_set_col_name(lp, 2, "x2");
+ // glp_set_col_name(lp, 2, "x2");
   glp_set_col_bnds(lp, 2, GLP_LO, 0.0, 0.0);
   glp_set_obj_coef(lp, 2, 0.5);
   ia[1] = 1, ja[1] = 1, ar[1] = 1.0; /* a[1,1] = 1 */
@@ -629,11 +629,17 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	bind("islbw", &islbw);
 	bind("frate", &frate);
 	bind_bool("psize", &psize);
-	memset((double **)plr, 0, 128 * 128 * sizeof(plr[0][0]));
+	//memset((double **)plr, 0, 128 * 128 * sizeof(plr[0][0]));
+	for(int i = 0; i < 128; i++){
+		for(int j = 0; j < 128; j++){
+			 plr[i][j] = 0;		
+		}		
+	}
 	route_timer_.sched(1);
 	load_coopprofile();
 	load_plr();
         src = {6}; 		//src from 0-65
+	ratemap[6] = frate;
 	plrthr = 0.1;
 	//profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
@@ -643,9 +649,45 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	if(dct_enabled==1 && dra_enabled==1){cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);}
 	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct rouing model."<<endl;}
 	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra rouing model."<<endl;}
-	else if (SatNode::dist_routing_ == 0 && cct_enabled == 1) cout<<"cct routing model."<<endl;
-	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 1) cout<<"tlr routing model"<<endl;
+	else if (SatNode::dist_routing_ == 0 && cct_enabled == 1) {cout<<"cct routing model."<<endl;bminit();}
+	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 1) {cout<<"tlr routing model"<<endl;}
 	//cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
+}
+
+ 
+
+void SatRouteObject::bminit(){
+	islbwm = new double*[66];
+	for(int i = 0; i < 66; i++) {
+		islbwm[i] = new double[66];
+		memset(islbwm[i], 0, sizeof(double) * 66);
+	}
+	//intra-plane isl
+	for(int i = 0; i < 56; i += 11){
+		for(int j = i; j < i + 11; j++){
+			if(j + 1 != i + 11) {
+				//cout<<"(Intraplane) The bandwidth from "<< j <<" to "<<j+1<<" is "<<islbw<<endl;
+				islbwm[j][j+1] = islbw;
+				islbwm[j+1][j] = islbw;	
+			}
+			else {
+				islbwm[j][j-10] = islbw;
+				islbwm[j-10][j] = islbw;
+				//cout<<"(Intraplane) The bandwidth from "<< j <<" to "<<j-10<<" is "<<islbw<<endl;
+			}
+		}
+		
+	}
+
+	//inter-plane isl
+	for(int i = 0; i < 11; i++){
+		for(int j = i; j < 45 + i; j += 11){
+			islbwm[j][j+11] = islbw;
+			islbwm[j+11][j] = islbw;
+			//cout<<"(Interplane) The bandwidth from "<< j <<" to "<<j+11<<" is "<<islbw<<endl;
+		}
+	}
+	cout<<"bandwidth matric initialization completed"<<endl;
 }
 
 void SatRouteObject::load_plr(){
@@ -1178,6 +1220,49 @@ void SatRouteObject::tlr_routes(){
 	}
 }
 
+void SatRouteObject::init_plinks(){
+	for (int i = 0; i < src.size(); i++){
+		if(plinks.find(src[i]) != plinks.end()){
+			vector<double**> plkv = plinks[src[i]];
+			for(int j = 0; j < plkv.size(); j++){
+				double** plk = plkv[j];
+				for(int k = 0; k < 66; k++)
+					delete[] plk[k];
+				delete[] plk;
+				//cout<<"The "<<j<<"th path of src "<<src[i]<<" is deleted."<<endl;
+			}
+		}
+	}
+	cout<<"init_plinks finished()"<<endl;
+}
+
+void SatRouteObject::build_plinks(map<int, vector<vector<int> > > candidate_paths){
+	for (int i = 0; i < src.size(); i++){
+		vector<double**> srcpaths;
+		if(candidate_paths.find(src[i]) != candidate_paths.end()){
+			vector<vector<int> > tv = candidate_paths[src[i]];
+			for(int j = 0; j < tv.size(); j++){
+				vector<int> pv = tv[j];
+				double** plk = new double*[66];
+				for(int i = 0; i < 66; i++) {
+					plk[i] = new double[66];
+					memset(plk[i], 0, sizeof(double) * 66);
+				}
+				//cout<<"Find a path with index="<<j<<endl;
+				for(int k = 0; k < pv.size() - 1; k++){
+					plk[pv[k]][pv[k+1]] = 1;		//TODO: set as flow rate
+				//	cout<<pv[k]<<" -> ";
+				}
+				//cout<<pv[pv.size() - 1]<<endl;
+				srcpaths.push_back(plk);
+			}
+			//cout<<"The number of paths for src="<<src[i]<<" is "<<tv.size()<<endl;
+		}
+		plinks[src[i]] = srcpaths;
+	}
+	cout<<"build_plinks finished()"<<endl;
+}
+
 void SatRouteObject::cct_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
@@ -1187,12 +1272,13 @@ void SatRouteObject::cct_routes(){
 	map<int, vector<double> > candidate_pathdelays;
 	map<int, vector<double> > candidate_pathplrs;
 	map<int, vector<int> > final_paths;
+	//init plinkmatric
+	init_plinks();
 	//calculate the cooperation node for all sources first
 	coopmap = cct_coop_selection(src, dest);           //coop_index ranges from 0-65;
 	//cout<<"calculate the candidate paths for all sources"<<endl;
 	for(int i = 0; i < src.size(); i++){
 		int source = src[i];
-		//int coop_index = dct_coop_selection(dest);           //coop_index ranges from 0-65;
 		if(coopmap.find(source) == coopmap.end()){cout<<"coop not found for source="<<source<<endl; exit(1);}
 		int coop_index = coopmap[source];
 		int sp = source/11, sn = source % 11;
@@ -1211,9 +1297,9 @@ void SatRouteObject::cct_routes(){
 		candidate_paths[source] = paths;
 		candidate_pathplrs[source] = pplrs;
 		candidate_pathdelays[source] = delays;
-		//f_path = rr_selection(pplrs, delays, paths, dest);
 	}
-	//cout<<"rr_selection returns the path for all sources"<<endl;
+	//cout<<"randomized rounding based path calculation for all sources"<<endl;
+	build_plinks(candidate_paths);
 	final_paths = rr_selection(candidate_pathplrs, candidate_pathdelays, candidate_paths);
 	//cout<<"populate route tables"<<endl;
 	for(int j = 0; j < src.size(); j++){
@@ -1311,9 +1397,10 @@ map<int, int> SatRouteObject::cct_coop_selection(vector<int> src, int dest){
 	return mres;
 }
 
-map<int, vector<int> > SatRouteObject::rr_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+/*
+map<int, vector<int> > SatRouteObject::r_bake_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
 map<int, vector<vector<int> > > candidate_paths)
-{
+{ 
 	map<int, vector<int> > mres;
 	for(int j = 0; j < src.size(); j++){
 		vector<int> res;
@@ -1347,13 +1434,131 @@ map<int, vector<vector<int> > > candidate_paths)
 					index_delay = i;
 					mdelay = delays[i];
 				}
-			}
-			//cout<<"1"<<endl;
+			} 
 			res = cpaths[index_delay];
 			mres[src[j]] = res;	
 		}
 			
+	}
+	return mres;
+}
+*/
+
+map<int, vector<int> > SatRouteObject::rr_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+map<int, vector<vector<int> > > candidate_paths)
+{ 
+	map<int, vector<int> > mres;
+	map<int, vector<double> > roundres;
+	map<int, int> srcmap;	//key:ncols, value: src
+	map<int, int> indexmap;	//key:ncols, value: index
+	map<int, int> frommap;	//key:nrows, value: from index
+	map<int, int> tomap;	//key:nrows, value: to index
+	//calculate the dimensions of the matric
+	int nrows = src.size(), ncols = 0;
+	for(int i = 0; i < src.size(); i++){
+		if(candidate_paths.find(src[i]) != candidate_paths.end()){
+			for(int j = 0; j < candidate_paths[src[i]].size(); j++){
+				ncols++;
+				srcmap[ncols] = src[i];
+				indexmap[ncols] = j;
+			}				
+		}
+	}
+	for(int i = 0; i < 66; i++)
+		for(int j = 0; j < 66; j++)
+			if(islbwm[i][j] != 0) {
+				nrows++;
+				frommap[nrows] = i;
+				tomap[nrows] = j;
+			}
+	cout<<"nrows= "<<nrows<<",ncols="<<ncols<<endl;
+	//initialize
+	glp_prob *lp;
+    	lp = glp_create_prob();
+    	glp_set_obj_dir(lp, GLP_MIN);
+	//auxiliary_variables_rows
+	glp_add_rows(lp, nrows);
+	for(int i = 1; i <= nrows; i++){
+		if(i <= src.size()) glp_set_row_bnds(lp, i, GLP_FX, 1.0, 1.0);	        //sum = 1
+		else glp_set_row_bnds(lp, i, GLP_DB, 0.0, frate);			//bandwidth constraint
 	} 
+	//variables_columns
+	glp_add_cols(lp, ncols);
+	for(int i = 1; i <= ncols; i++)
+		glp_set_col_bnds(lp, i, GLP_DB, 0.0, 1.0);		// x ranges from 0 to 1
+	//objective function
+	for(int i = 1; i <= ncols; i++){
+		int sid = srcmap[i];
+		int pid = indexmap[i];
+		if(candidate_pathdelays.find(sid) == candidate_pathdelays.end()) {cout<<"path delay for src="<<sid<<" does not exists"<<endl; exit(1);}
+		glp_set_obj_coef(lp, i, candidate_pathdelays[sid][pid]);
+		//cout<<"The "<<pid<<"th path from src="<<sid<<"'s delay is "<<candidate_pathdelays[sid][pid]<<endl;
+	}
+	//constraint matrix
+	int* ia = new int[1+nrows*ncols];
+	int* ja = new int[1+nrows*ncols];
+	double* ar = new double[1+nrows*ncols];
+	int row = 1, col = 1;
+	double value = 0;
+	for(int i = 1; i <= nrows*ncols; i++){
+		if(col == ncols + 1) { col = 1; row++;}
+		if(row <= src.size()) value = 1;
+		else {
+			int from = frommap[row];
+			int to = tomap[row];
+			int sid = srcmap[col];
+			int pid = indexmap[col];
+			if(plinks.find(sid) == plinks.end()){cout<<"plinks src="<<sid<<" does not exists"<<endl; exit(1);}
+			if(plinks[sid][pid][from][to] == 0) value = 0;
+			else value = plinks[sid][pid][from][to];
+			/*			
+			if(value!=0) {
+			cout<<"The "<<pid<<"-th path of src="<<sid<<" has a link from "<<from<<" to "<<to<<endl;
+			cout<<"row="<<row<<",col="<<col<<",value="<<value<<endl;
+			}*/
+		}	
+		ia[i] = row, ja[i] = col, ar[i] = value;		
+		col++;
+	}
+	glp_load_matrix(lp, nrows*ncols, ia, ja, ar);
+	//calculate
+	glp_simplex(lp, NULL);
+	//output
+	double z;
+	int sid;
+    	z = glp_get_obj_val(lp); 
+	for(int i = 1; i <= ncols; i++){
+		double x = glp_get_col_prim(lp, i);
+		sid = srcmap[i];
+		if(roundres.find(sid) == roundres.end()){
+			vector<double> sv;
+			sv.push_back(x);
+			roundres[sid] = sv;
+		} else {
+			roundres[sid].push_back(x);
+		}
+	}
+	//round
+    	for(int i = 0; i < src.size(); i++){
+		bool find =false;
+		int pid = 0;
+		while(!find){
+			if(roundres.find(src[i]) == roundres.end()) {cout<<"round results of src="<<src[i]<<" does not exists"<<endl; exit(1);}
+			if(pid == roundres[sid].size()) pid = 0;
+			srand((int)time(0));
+			assert(pid < candidate_paths[src[i]].size());
+			if((double)rand()/RAND_MAX < roundres[sid][pid]){
+				find = true; 
+				mres[src[i]] = candidate_paths[src[i]][pid];
+				cout<<"Select the "<<pid<<"-th path for src="<<src[i]<<endl;
+			}
+			pid++;
+		}
+	} 
+	//cleanup
+	delete ia, ja, ar;
+	glp_delete_prob(lp);
+	glp_free_env();
 	return mres;
 }
 
