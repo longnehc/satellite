@@ -1,0 +1,462 @@
+cct routing model.
+bandwidth matric initialization completed
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6
+init_plinks finished()
+build_plinks finished()
+nrows= 243,ncols=20
+GLPK Simplex Optimizer, v4.60
+243 rows, 20 columns, 180 non-zeros
+      0: obj =   0.000000000e+00 inf =   1.000e+00 (1)
+      1: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+*     2: obj =   9.947070000e-02 inf =   0.000e+00 (0)
+OPTIMAL LP SOLUTION FOUND
+Select the 0-th path for src=6

@@ -252,7 +252,7 @@ bool SatRouteAgent::droppacket(int from, int to){
  */
 
  
-
+bool dropenabled = false;
 void SatRouteAgent::forwardPacket(Packet * p)
 {
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
@@ -274,25 +274,39 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	if (SatRouteObject::instance().data_driven_computation())
 		SatRouteObject::instance().recompute_node(myaddr_);
 	if (SatNode::dist_routing_ == 0) {
-		if (slot_ == 0) { // No routes to anywhere
-			if (node_->trace())
-				node_->trace()->traceonly(p);
-			Packet::free(p);
+		adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
+		int size = 128;
+		#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
+		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
+		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY){		//route for the background flow
+			link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, dst+1);	
+			//set next hop & call recv
+			hdrc->next_hop_  = dst;
+                	link_entry_->recv(p, (Handler *)0);
+			return;
+		}		
+		else{
+			if (slot_ == 0) { // No routes to anywhere
+				if (node_->trace())
+					node_->trace()->traceonly(p);
+				Packet::free(p);
+				return;
+			}
+			
+			link_entry_ = slot_[dst].entry;
+			if (link_entry_ == 0) {
+				if (node_->trace())
+					node_->trace()->traceonly(p);
+				Packet::free(p);
+				return;
+			}
+			if(droppacket(myaddr_+1, slot_[dst].next_hop+1) && dropenabled){ 
+				return;
+			}
+			hdrc->next_hop_ = slot_[dst].next_hop;
+			link_entry_->recv(p, (Handler *)0);
 			return;
 		}
-		link_entry_ = slot_[dst].entry;
-		if (link_entry_ == 0) {
-			if (node_->trace())
-				node_->trace()->traceonly(p);
-			Packet::free(p);
-			return;
-		}
-		if(droppacket(myaddr_+1, slot_[dst].next_hop+1)){ 
-			return;
-		}
-		hdrc->next_hop_ = slot_[dst].next_hop;
-		link_entry_->recv(p, (Handler *)0);
-		return;
 	} else {
 		// DISTRIBUTED ROUTING LOOKUP COULD GO HERE
 		//cout<<latitude_threshold_<<endl;
@@ -308,6 +322,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			//cout<<"reach destination: "<<dst<<endl;
 		}
 		else{
+			cout<<"never"<<endl;
 			int coop_index = dct_coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
 			if(SatRouteObject::instance().get_dra() == 1)
@@ -317,7 +332,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			//cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
-		if(droppacket(myaddr_+1, nxhop+1)){ 
+		if(droppacket(myaddr_+1, nxhop+1) && dropenabled){ 
 			//cout<<"The packet is droped from "<<myaddr_<<" to "<<nxhop<<endl;;
 			return;
 		}
@@ -647,10 +662,11 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 		cout<<"1";	
 	}
 	if(dct_enabled==1 && dra_enabled==1){cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);}
-	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct rouing model."<<endl;}
-	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra rouing model."<<endl;}
+	if (SatNode::dist_routing_ == 1 && dct_enabled == 1) {cout<<"dct routing model."<<endl;}
+	else if(SatNode::dist_routing_ == 1 && dra_enabled == 1) {cout<<"dra routing model."<<endl;}
 	else if (SatNode::dist_routing_ == 0 && cct_enabled == 1) {cout<<"cct routing model."<<endl;bminit();}
 	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 1) {cout<<"tlr routing model"<<endl;}
+	else if (SatNode::dist_routing_ == 0 && tlr_enabled == 0 && cct_enabled == 0) {cout<<"baseline routing model"<<endl;}
 	//cout<<"ROUTEOBJECT INIT: "<<islbw<<","<<frate<<","<<psize<<endl;
 }
 
@@ -754,7 +770,8 @@ void SatRouteObject::load_coopprofile(){
 
 void SatRouteObject::route_timer(){
 	route_timer_.resched(1); 
-//	cout<<"dasdad"<<endl;
+	
+	if(node_load(7,8) != 0) cout<<"dasdad: "<<node_load(7,8)<<endl;
 //	dump();
 }
 
@@ -828,9 +845,10 @@ void SatRouteObject::recompute()
 		compute_topology();
 		if (wiredRouting_) {
 			Tcl::instance().evalf("[Simulator instance] compute-flat-routes");
-		} else {
-			if(cct_enabled == 0 && tlr_enabled == 0)
+		} else { 
+			if(cct_enabled == 0 && tlr_enabled == 0){
 				compute_routes(); // base class function
+			}
 			else if (cct_enabled == 1)
 				cct_routes();
 			else if (tlr_enabled == 1)
