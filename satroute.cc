@@ -274,11 +274,15 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	if (SatRouteObject::instance().data_driven_computation())
 		SatRouteObject::instance().recompute_node(myaddr_);
 	if (SatNode::dist_routing_ == 0) {
+		if(NOW < 10)
+			SatRouteObject::instance().compute_topology();
 		adj_entry* pubadj_ = SatRouteObject::instance().getAdj();
 		int size = 128;
 		#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
 		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
+		//cout<<"myaddr="<<myaddr_<<",dst="<<dst<<endl;
 		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY){		//route for the background flow
+			//cout<<"myaddr="<<myaddr_<<",dst="<<dst<<endl;
 			link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, dst+1);	
 			//set next hop & call recv
 			hdrc->next_hop_  = dst;
@@ -292,14 +296,13 @@ void SatRouteAgent::forwardPacket(Packet * p)
 				Packet::free(p);
 				return;
 			}
-			
 			link_entry_ = slot_[dst].entry;
 			if (link_entry_ == 0) {
 				if (node_->trace())
 					node_->trace()->traceonly(p);
 				Packet::free(p);
 				return;
-			}
+			} 
 			if(droppacket(myaddr_+1, slot_[dst].next_hop+1) && dropenabled){ 
 				return;
 			}
@@ -583,12 +586,12 @@ static class SatRouteObjectClass:public TclClass
 SatRouteObject* SatRouteObject::instance_;
 
 void SatRouteObject::profile_test(){
-	for(int i = 1; i <=66; i++){
+	//for(int i = 1; i <=66; i++){
 		vector<double> tv = coopprofile[68][35]; 
 		for(int i = 0; i < tv.size(); i++){
 			cout<<"2:"<<tv[i]<<endl;
 		} 
-	}
+	//}
 	/*
 	map<int, vector<double> > tm = coopprofile[68];
 	for(int k = 1; k < 86390; k++){
@@ -1076,7 +1079,7 @@ void SatRouteObject::dump()
 			src = i / size_ - 1;
 			dst = i % size_ - 1;
 			if(src == 67 || dst== 67)
-			printf("Found a link from %d to %d with cost %f\n", src, dst, adj_[i].cost);
+			printf("Found a link from %d to %d with cost %f at %f.\n", src, dst, adj_[i].cost, NOW);
 			//cout<<ADJ(7,18)<<endl;
 		}
         }
@@ -1093,6 +1096,7 @@ void SatRouteObject::tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 	if (nn == 1) nx_num = sn + 1 > 10 ? 0 : sn + 1;
 	else if (nn == -1) nx_num = sn - 1 < 0 ? 10 : sn - 1;
 	else nx_num = sn;
+	//cout<<"sp="<<sp<<",sn="<<sn<<",dp="<<dp<<",dn="<<dn<<endl;
 	if(sp == dp && sn == dn){
 		/*
 		cout<<"Find a path with delay="<<delay<<endl;
@@ -1108,12 +1112,12 @@ void SatRouteObject::tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 	}	
 	if (sp != dp){
 		if(ADJ(sp*11+sn+1, nx_plane*11+sn+1) == SAT_ROUTE_INFINITY){ 
-			//cout<<"Link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<" doesn't exists."<<endl;
-			//dump();
+		//	cout<<"Link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<" doesn't exists."<<endl;
+		//	dump();
 		} else {
 			path.push_back(nx_plane*11+sn); 
 			delay += ADJ(sp*11+sn+1, nx_plane*11+sn+1);
-			//cout<<"Find link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<endl;
+		//	cout<<"Find link1 from "<<sp*11+sn<<" to "<<nx_plane*11+sn<<endl;
 			tlrpathcal(nx_plane, sn, dp, dn, np, nn, delay, mdelay, path, tpath);
 			delay -= ADJ(sp*11+sn+1, nx_plane*11+sn+1);
 			path.pop_back();
@@ -1121,12 +1125,12 @@ void SatRouteObject::tlrpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 	}
 	if (sn != dn){
 		if(ADJ(sp*11+sn+1, sp*11+nx_num+1) == SAT_ROUTE_INFINITY) {
-			//cout<<"Link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<" doesn't exists."<<endl;
+		//	cout<<"Link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<" doesn't exists."<<endl;
 			//dump();
 		} else {
 			path.push_back(sp*11+nx_num); 
 			delay += ADJ(sp*11+sn+1, sp*11+nx_num+1);
-			//cout<<"Find link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<endl;
+		//	cout<<"Find link2 from "<<sp*11+sn<<" to "<<sp*11+nx_num<<endl;
 			tlrpathcal(sp, nx_num, dp, dn, np, nn, delay, mdelay, path, tpath); 
 			delay -= ADJ(sp*11+sn+1, sp*11+nx_num+1);
 			path.pop_back();
@@ -1211,7 +1215,7 @@ void SatRouteObject::tlr_routes(){
 		path.push_back(source); 
 		tlrpathcal(sp, sn, dp, dn, np, nn, 0, 9999, path, tpath);
 		map<int, int> mpath;
-		//cout<<"Find a path with minimal delay: "<<endl;	
+		//cout<<"Find a path with minimal delay: "<<tpath.size()<<endl;	
 		for(int i = 0; i < tpath.size() - 1; i++){
 		//	cout<<tpath[i]<<"->";
 			mpath[tpath[i]] = tpath[i+1];	
@@ -1228,6 +1232,7 @@ void SatRouteObject::tlr_routes(){
 				if (target == 0) {
 					printf("Error, routelogic target ");
 					printf("not populated %f %d->%d,%d\n", NOW,snodep->address(),dest,mpath[snodep->address()]);
+					profile_test();
 					dump();					
 					exit(1);
 				}
@@ -1362,8 +1367,8 @@ int SatRouteObject::tlr_coop_selection(int dst){
 		if(tm.find(i) != tm.end()){
 			vector<double>tv = tm[i]; 
                         for(int j = 0; j < tv.size(); j = j + 2){ 
-				if(tv[j] <= cur && j + 1 <tv.size()){
-				     if(tv[j+1] < cur) continue;
+				if(int(tv[j]) <= int(cur) && j + 1 <tv.size()){
+				     if(int(tv[j+1]) <= int(cur)) continue;
 					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
 				     else{
 					//cout <<"Find "<<i-1<<" to "<<t_dst-1<<" with cost= "<<ADJ(i, t_dst)<<" from "<<tv[j]<<" to "<<tv[j+1]<<" at "<<cur<<endl;

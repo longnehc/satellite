@@ -324,9 +324,10 @@ void TermLinkHandoffMgr::test(){
 }
 
 //TermLinkHandoffMgr* TermLinkHandoffMgr::instance_;
- 
+
 int TermLinkHandoffMgr::handoff()
 {
+	int ccc = 0;
 	//cout<<"handoff called at "<<NOW<<endl;
 	coordinate sat_coord, earth_coord;
 	SatLinkHead* slhp;
@@ -345,6 +346,7 @@ int TermLinkHandoffMgr::handoff()
 	// Traverse the linked list of link interfaces
 	for (slhp = (SatLinkHead*) node_->linklisthead().lh_first; slhp; 
 	    slhp = (SatLinkHead*) slhp->nextlinkhead() ) {
+		ccc++;
 		if (slhp->type() == LINK_GSL_GEO || 
 		    slhp->type() == LINK_GENERIC)
 			continue;
@@ -371,8 +373,8 @@ int TermLinkHandoffMgr::handoff()
 				slhp->phy_tx()->setchnl(0);
 				slhp->phy_rx()->setchnl(0);
 				// wired-satellite integration	
-			    // 	if(slhp->phy_tx()->node()->address()+1==68 && peer_->address()+1 == 35) 
-			    // cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
+			     	if(slhp->phy_tx()->node()->address()+1==67) 
+			     cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
 				//Initial case : NOW = 0, set by tcl
 				if(NOW!=0) { addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);}
 				if (SatRouteObject::instance().wiredRouting()) {
@@ -426,7 +428,7 @@ int TermLinkHandoffMgr::handoff()
 					assert (best_peer_ != 0);
 					peer_ = best_peer_;
 					found_elev_ = best_found_elev_;
-				}*/
+				} */
 			}
 			/*
 			if (found_elev_) {
@@ -445,15 +447,54 @@ int TermLinkHandoffMgr::handoff()
 				addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);
 				//if(peers.size() >1) exit(1);
 				//if(slhp->phy_tx()->node()->address()+1==68 && peer_->address()+1 == 35) 				
-				//cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
+				cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<" at "<<NOW<<endl;
 				
 			}  */
-			if(findpeer) {
+			if(peers.size()!=0) {cout<<"dddddddddddd"<<NOW<<endl;
+			for(int i = 0; i <peers.size(); i++)
+				cout<<peers[i]->address()<<" ";
+			cout<<endl;		
+			}
+			if(peers.size()!=0) {
 				slhp->linkup_ = TRUE;
 				link_changes_flag_ = TRUE;
-				for(int i = 0; i < peers.size(); i++) {
-					SatNode* tpeer = peers[i];
+				if(peers.size() > 1){
+				// cout<<"1"<<endl;
+					SatNode* tpeer0 = peers[0];
+					SatNode* tpeer1 = peers[1];	
 					// Point slhp->phy_tx to peer_'s inlink
+ 
+					slhp->phy_tx()->setchnl(tpeer0->uplink());
+ 					
+					// Point slhp->phy_rx to peer_'s outlink and
+					// add phy_rx to the channels list of phy's
+					slhp->phy_rx()->setchnl(tpeer0->downlink());
+					
+					// Add phy to channel's linked list of i/fces
+					slhp->phy_rx()->insertchnl(&(tpeer0->downlink()->ifhead_));
+					addCoop(slhp->phy_tx()->node()->address()+1,tpeer0->address()+1, NOW);
+					cout<<"[Simulator instance] sat_link_establish1: "<<slhp->phy_tx()->node()->address()<<","<<peers[0]->address()<<" at "<<NOW<<endl;
+if(ccc==1) cout<<"e:"<<slhp->nextlinkhead()<<endl;
+					slhp = (SatLinkHead*) slhp->nextlinkhead();
+
+					if(slhp != NULL){ //cout<<"4"<<endl; 
+						// Point slhp->phy_tx to peer_'s inlink
+
+						slhp->phy_tx()->setchnl(tpeer1->uplink());
+						
+						// Point slhp->phy_rx to peer_'s outlink and
+						// add phy_rx to the channels list of phy's
+						slhp->phy_rx()->setchnl(tpeer1->downlink());
+						
+						// Add phy to channel's linked list of i/fces
+						slhp->phy_rx()->insertchnl(&(tpeer1->downlink()->ifhead_));
+						addCoop(slhp->phy_tx()->node()->address()+1,tpeer1->address()+1, NOW);
+						cout<<"[Simulator instance] sat_link_establish2: "<<slhp->phy_tx()->node()->address()<<","<<peers[1]->address()<<" at "<<NOW<<endl;
+					}			
+					break;
+				} else if(peers.size()==1) {	 
+					SatNode* tpeer = peers[0];
+					//cout<<"45"<<endl;
 					slhp->phy_tx()->setchnl(tpeer->uplink());
 					
 					// Point slhp->phy_rx to peer_'s outlink and
@@ -463,14 +504,13 @@ int TermLinkHandoffMgr::handoff()
 					// Add phy to channel's linked list of i/fces
 					slhp->phy_rx()->insertchnl(&(tpeer->downlink()->ifhead_));
 					addCoop(slhp->phy_tx()->node()->address()+1,tpeer->address()+1, NOW);
-/*
-//TODO:find when exist 2, alter mask
-				  	if(peers.size() >1) {cout<<"???"<<NOW<<endl; exit(1);}
-					else cout<<"[Simulator instance] sat_link_establish: "<<slhp->phy_tx()->node()->address()<<","<<tpeer->address()<<" at "<<NOW<<endl;
-*/
+					cout<<"[Simulator instance] sat_link_establish0: "<<slhp->phy_tx()->node()->address()<<","<<tpeer->address()<<" at "<<NOW<<endl;
+					break;
 				}
-			}
+			}  //find peer
 		}
+		//if(ccc== 1 && slhp->nextlinkhead() != NULL) cout<<"f:"<<slhp->nextlinkhead()<<endl;
+		//if(ccc==2) cout<<"gya:"<<slhp->phy_tx()->node()->address()<<endl;
 	}
 	if (link_changes_flag_) { 
 		SatRouteObject::instance().recompute();
@@ -485,6 +525,7 @@ int TermLinkHandoffMgr::handoff()
 		} else
 			timer_.resched(term_handoff_int_);
 	}
+	//cout<<"!!!!!!!!!!!!!!!!"<<ccc<<endl;
         return link_changes_flag_;
 }
 
