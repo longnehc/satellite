@@ -325,7 +325,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 			//cout<<"reach destination: "<<dst<<endl;
 		}
 		else{
-			cout<<"never"<<endl;
+			//cout<<"never"<<endl;
 			int coop_index = dct_coop_selection(dst);			//coop_index ranges from 0-65
 			//calculate nxthop by distributed algorithm
 			if(SatRouteObject::instance().get_dra() == 1)
@@ -774,7 +774,7 @@ void SatRouteObject::load_coopprofile(){
 void SatRouteObject::route_timer(){
 	route_timer_.resched(1); 
 	
-	if(node_load(7,8) != 0) cout<<"dasdad: "<<node_load(7,8)<<endl;
+//	if(node_load(7,8) != 0) cout<<"dasdad: "<<node_load(7,8)<<endl;
 //	dump();
 }
 
