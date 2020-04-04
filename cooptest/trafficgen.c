@@ -42,8 +42,8 @@ int main()
 		string outfname = fname;
 		outfname +=".tr";
 		fname += ".tcl";
-		string starttime = "60.0";
-		string finishtime = "120.0";
+		string starttime = "1.0";
+		string finishtime = "2000.0";
 		
 		vector<string> bfrom = {"6"};			//background from
 		vector<string> bto = {"7"};			//background to
@@ -53,7 +53,7 @@ int main()
 		out <<"global ns"<<endl;
 		out <<"set ns [new Simulator]"<<endl;
 		out<<endl;
-		out <<"HandoffManager/Term set elevation_mask_ 8.2"<<endl;
+		out <<"HandoffManager/Term set elevation_mask_ 6"<<endl;
 		out <<"HandoffManager/Term set term_handoff_int_ 10"<<endl;
 		out <<"HandoffManager/Sat set sat_handoff_int_ 10"<<endl;
 		out <<"HandoffManager/Sat set latitude_threshold_ 85 "<<endl;
@@ -121,6 +121,8 @@ int main()
 		out <<"  $opt(phy) [$n0 set downlink_] [$n0 set uplink_]"<<endl;
 		out <<"$n101 add-gsl polar $opt(ll) $opt(ifq) $opt(qlim) $opt(mac) $opt(bw_up) \\"<<endl;
 		out <<"  $opt(phy) [$n0 set downlink_] [$n0 set uplink_]"<<endl;
+		out <<"$n101 add-gsl polar $opt(ll) $opt(ifq) $opt(qlim) $opt(mac) $opt(bw_up) \\"<<endl;
+		out <<"  $opt(phy) [$n1 set downlink_] [$n1 set uplink_]"<<endl;
 		out<<endl;
 		out <<"$ns trace-all-satlinks $outfile"<<endl;
 		out<<endl;
@@ -130,10 +132,11 @@ int main()
 			out<<"set cbr"+to_string(i)+" [new Application/Traffic/CBR]"<<endl;
 			out<<"$cbr"+to_string(i)+" attach-agent $udp"+to_string(i)<<endl;
 			out<<"$cbr"+to_string(i)+" set packet_size_ $packetsize"<<endl;
-			out<<"$cbr"+to_string(i)+" set rate_ $rate"<<endl;
+			//out<<"$cbr"+to_string(i)+" set rate_ $rate"<<endl;
+			out<<"$cbr"+to_string(i)+" set interval_ 60.01"<<endl;
 			out<<endl;
 			out<<"set null"+to_string(i)+" [new Agent/Null]"<<endl;
-			out<<"$ns attach-agent $n7 $null"+to_string(i)<<endl;		//n101 is xi chang
+			out<<"$ns attach-agent $n101 $null"+to_string(i)<<endl;		//n101 is xi chang
 			out<<endl;
 			out<<"$ns connect $udp"+to_string(i)+" $null"+to_string(i)<<endl;
 			out<<"$ns at "+starttime+" \"$cbr"+to_string(i)+" start\""<<endl;

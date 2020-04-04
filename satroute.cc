@@ -191,8 +191,8 @@ int SatRouteAgent::dct_coop_selection(int dst){
                         for(int j = 0; j < tv.size(); j = j + 2){
 				//if(j%2 == 0) cout<<"start "<<tv[j]<<",";
 				//else cout<<"end "<<tv[j]<<",";
-				if(tv[j] <= cur && j + 1 <tv.size()){
-				     if(tv[j+1] < cur) continue;
+				if(int(tv[j]) <= int(cur) && j + 1 <tv.size()){
+				     if(int(tv[j+1]) <= int(cur)) continue;
 					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
 				     if(tv[j+1]-cur > maxdur){
 						res = i;
@@ -201,6 +201,13 @@ int SatRouteAgent::dct_coop_selection(int dst){
 					}
 					//cout<<"break!!!!!!!!!!: "<<i<<endl;
 					break;
+				}
+			        if(int(tv[j]) <= int(cur) && j == tv.size() - 1){
+				      if(2000-cur > maxdur){
+					    res = i;
+					    maxdur = 2000-cur;
+				      }
+				      break;
 				}
 			}
 			
@@ -586,14 +593,26 @@ static class SatRouteObjectClass:public TclClass
 SatRouteObject* SatRouteObject::instance_;
 
 void SatRouteObject::profile_test(){
-	//for(int i = 1; i <=66; i++){
-		vector<double> tv = coopprofile[68][35]; 
-		for(int i = 0; i < tv.size(); i++){
-			cout<<"2:"<<tv[i]<<endl;
-		} 
-	//}
-	/*
+ /*
+	vector<double> tv = coopprofile[68][35]; 
+	for(int i = 0; i < tv.size(); i++){	
+		cout<<"2:"<<tv[i]<<endl;
+	} 
+*/	 
+	
 	map<int, vector<double> > tm = coopprofile[68];
+	for(int i = 1; i <=66; i++){
+		if(tm.find(i) != tm.end()){
+			vector<double>tv = tm[i]; 
+			for(int j = 0; j < tv.size() - 1; j = j + 2){ 
+				if(tv[j]<540 && tv[j+1]>540){
+					cout<<"Find:"<<i<<" from "<<tv[j]<<" to "<<tv[j+1]<<endl;
+					break;
+				}
+			}
+		}
+	}
+/*
 	for(int k = 1; k < 86390; k++){
 		vector<int> node;
 		vector<int> start;
@@ -1028,7 +1047,8 @@ void SatRouteObject::populate_routing_tables(int node)
                         if (!SatNode::IsASatNode(snodep->address()))
                                 continue;
 			dst = snodep2->address();
-			next_hop = lookup(src, dst);
+			if(src == 66 || dst ==66) continue;
+ 			next_hop = lookup(src, dst);
 			if (next_hop != -1 && src != dst) {
 				// Here need to insert target into slot table
 				target = (NsObject*) lookup_entry(src, dst);
@@ -1038,7 +1058,8 @@ void SatRouteObject::populate_routing_tables(int node)
 				//}
 				if (target == 0) {
 					printf("Error, routelogic target ");
-					printf("not populated %f\n", NOW); 
+					printf("not populated from %d to %d at %f\n", src, dst, NOW); 
+					dump();
 					exit(1);
 				}
 				((SatNode*)snodep)->ragent()->install(dst, 
@@ -1379,6 +1400,13 @@ int SatRouteObject::tlr_coop_selection(int dst){
 					break;
 				     }
 				}
+				if(int(tv[j]) <= int(cur) && j == tv.size() - 1){
+					if(ADJ(i, t_dst) < maxcost){
+						maxcost = ADJ(i, t_dst);
+						res = i;
+					}
+					break;
+				}
 			}
 			
 		}
@@ -1400,17 +1428,21 @@ map<int, int> SatRouteObject::cct_coop_selection(vector<int> src, int dest){
 		if(tm.find(i) != tm.end()){
 			vector<double>tv = tm[i]; 
 		               for(int j = 0; j < tv.size(); j = j + 2){
-				  if(tv[j] <= cur && j + 1 <tv.size()){
-				     if(tv[j+1] < cur) continue;
+				  if(int(tv[j]) <= int(cur) && j + 1 <tv.size()){
+				     if(int(tv[j+1]) <= int(cur)) continue;
 					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
 				     else{avaicoop.push_back(i); break;}
 				   }
+				  if(int(tv[j]) <= int(cur) && j == tv.size() - 1){
+				     avaicoop.push_back(i);
+				     break;
+				  }
 				}
 				
-			}
 		}
-		if(avaicoop.size() == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);
 	}
+	if(avaicoop.size() == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);}
+	//if(avaicoop.size() >1){cout<<"coop to "<<t_dst-1<<" 1: "<<avaicoop[0]-1<<",2:"<<avaicoop[1]-1<<endl; exit(1);}
 	int cindex = 0;		 
 	for(int i = 0; i < src.size(); i++){
 		mres[src[i]] = avaicoop[cindex] - 1;	//coop ranges from 0 to 65
