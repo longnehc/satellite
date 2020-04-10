@@ -675,8 +675,15 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	route_timer_.sched(1);
 	load_coopprofile();
 	load_plr();
-        src = {6}; 		//src from 0-65
-	ratemap[6] = frate;
+        //src = {6}; 		//src from 0-65
+	src = {6,7};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7,17,18};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7,17,18,28,29};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7,17,18,28,29,39,40};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7,17,18,28,29,39,40,50,51};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//ratemap[6] = frate;
+	ratemap[6] = frate;ratemap[7] = frate;ratemap[17] = frate;ratemap[18] = frate;ratemap[28] = frate;
+	ratemap[29] = frate;ratemap[39] = frate;ratemap[40] = frate;ratemap[50] = frate;ratemap[51] = frate;
 	plrthr = 0.1;
 	//profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
@@ -1171,13 +1178,10 @@ void SatRouteObject::cctpathcal(int sp, int sn, int dp, int dn, int np, int nn, 
 	else if (nn == -1) nx_num = sn - 1 < 0 ? 10 : sn - 1;
 	else nx_num = sn;
 	if(sp == dp && sn == dn){
-		/*
-		cout<<"Find a path with delay="<<delay<<" pplr= "<<1-pplr<<endl;
-		for(int i = 0; i < path.size(); i++){
-			cout<<path[i]<<"->";		
-		}
-		cout<<endl;
-		*/
+		
+		//cout<<"Find a path with delay="<<delay<<" pplr= "<<1-pplr<<endl;
+		//for(int i = 0; i < path.size(); i++){	cout<<path[i]<<"->";}
+		//cout<<endl;
 		delays.push_back(delay);
 		pplrs.push_back(1-pplr);
 		paths.push_back(path);
@@ -1235,6 +1239,8 @@ void SatRouteObject::tlr_routes(){
 		vector<int> tpath;
 		path.push_back(source); 
 		tlrpathcal(sp, sn, dp, dn, np, nn, 0, 9999, path, tpath);
+		if(tpath.size() == 0) {cout<<"path from "<<src[i]<<" to "<<coop_index<<"not found"<<endl; exit(1);}
+		if(src[i] == 7) {cout<<"path from "<<src[i]<<" to "<<coop_index<<" at "<<NOW<<endl;}
 		map<int, int> mpath;
 		//cout<<"Find a path with minimal delay: "<<tpath.size()<<endl;	
 		for(int i = 0; i < tpath.size() - 1; i++){
@@ -1338,6 +1344,7 @@ void SatRouteObject::cct_routes(){
 		vector<int> f_path;
 		cand_path.push_back(source);
 		cctpathcal(sp, sn, dp, dn, np, nn, 1, 0, cand_path, pplrs, delays, paths);
+		if(paths.size() == 0) {cout<<"path from "<<src[i]<<" to "<<coop_index<<"not found"<<endl; exit(1);}
 		candidate_paths[source] = paths;
 		candidate_pathplrs[source] = pplrs;
 		candidate_pathdelays[source] = delays;
@@ -1442,7 +1449,7 @@ map<int, int> SatRouteObject::cct_coop_selection(vector<int> src, int dest){
 		}
 	}
 	if(avaicoop.size() == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);}
-	//if(avaicoop.size() >1){cout<<"coop to "<<t_dst-1<<" 1: "<<avaicoop[0]-1<<",2:"<<avaicoop[1]-1<<endl; exit(1);}
+	if(avaicoop.size() > 1){cout<<"coop to "<<t_dst-1<<" 1: "<<avaicoop[0]-1<<",2:"<<avaicoop[1]-1<<" at "<<NOW<<endl;}
 	int cindex = 0;		 
 	for(int i = 0; i < src.size(); i++){
 		mres[src[i]] = avaicoop[cindex] - 1;	//coop ranges from 0 to 65
@@ -1508,15 +1515,21 @@ map<int, vector<vector<int> > > candidate_paths)
 	map<int, int> indexmap;	//key:ncols, value: index
 	map<int, int> frommap;	//key:nrows, value: from index
 	map<int, int> tomap;	//key:nrows, value: to index
+	map<int, int> row2src;  //key:nrows, value: src
 	//calculate the dimensions of the matric
-	int nrows = src.size(), ncols = 0;
+	int nrows = 0, ncols = 0;
+	for(int i = 0; i < src.size(); i++){
+		nrows++;
+		row2src[nrows] = src[i]; 
+	}
 	for(int i = 0; i < src.size(); i++){
 		if(candidate_paths.find(src[i]) != candidate_paths.end()){
 			for(int j = 0; j < candidate_paths[src[i]].size(); j++){
 				ncols++;
 				srcmap[ncols] = src[i];
 				indexmap[ncols] = j;
-			}				
+			}	
+			//cout<<"The number of paths to "<<src[i]<<" is "<<candidate_paths[src[i]].size()<<endl;			
 		}
 	}
 	for(int i = 0; i < 66; i++)
@@ -1526,7 +1539,7 @@ map<int, vector<vector<int> > > candidate_paths)
 				frommap[nrows] = i;
 				tomap[nrows] = j;
 			}
-	cout<<"nrows= "<<nrows<<",ncols="<<ncols<<endl;
+	cout<<"nrows= "<<nrows<<",ncols="<<ncols<<",frate="<<frate<<",islbw="<<islbw<<endl;
 	//initialize
 	glp_prob *lp;
     	lp = glp_create_prob();
@@ -1535,7 +1548,7 @@ map<int, vector<vector<int> > > candidate_paths)
 	glp_add_rows(lp, nrows);
 	for(int i = 1; i <= nrows; i++){
 		if(i <= src.size()) glp_set_row_bnds(lp, i, GLP_FX, 1.0, 1.0);	        //sum = 1
-		else glp_set_row_bnds(lp, i, GLP_DB, 0.0, frate);			//bandwidth constraint
+		else glp_set_row_bnds(lp, i, GLP_DB, 0.0, islbw);			//bandwidth constraint
 	} 
 	//variables_columns
 	glp_add_cols(lp, ncols);
@@ -1557,7 +1570,16 @@ map<int, vector<vector<int> > > candidate_paths)
 	double value = 0;
 	for(int i = 1; i <= nrows*ncols; i++){
 		if(col == ncols + 1) { col = 1; row++;}
-		if(row <= src.size()) value = 1;
+		if(row <= src.size()){
+			if(row2src[row] == srcmap[col]) {
+				value = 1;
+				//cout<<"row="<<row<<",col="<<col<<" is set to "<<value<<endl;
+			}
+			else { 
+				value = 0;
+				//cout<<"row="<<row<<",col="<<col<<" is set to "<<value<<endl;			
+			}
+		}
 		else {
 			int from = frommap[row];
 			int to = tomap[row];
@@ -1593,6 +1615,11 @@ map<int, vector<vector<int> > > candidate_paths)
 			roundres[sid].push_back(x);
 		}
 	}
+	for(int i = 0; i < src.size(); i++){
+		for(int pid = 0; pid < roundres[src[i]].size(); pid++){
+			cout<<"The "<<pid<<"-th path to "<<src[i]<<" round results: "<<roundres[src[i]][pid]<<endl;
+		}
+	}
 	//round
     	for(int i = 0; i < src.size(); i++){
 		bool find =false;
@@ -1602,6 +1629,7 @@ map<int, vector<vector<int> > > candidate_paths)
 			if(pid == roundres[sid].size()) pid = 0;
 			srand((int)time(0));
 			assert(pid < candidate_paths[src[i]].size());
+			//cout<<"1"<<endl;
 			if((double)rand()/RAND_MAX < roundres[sid][pid]){
 				find = true; 
 				mres[src[i]] = candidate_paths[src[i]][pid];
