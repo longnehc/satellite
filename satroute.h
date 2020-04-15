@@ -159,6 +159,9 @@ map<int, vector<vector<int> > > candidate_paths);
   map<int, vector<double**> > plinks; //path links; key = src, value = a set of 66 * 66 matrics
   void build_plinks(map<int, vector<vector<int> > > candidate_paths);
   void init_plinks();
+  void timetest(map<int, vector<double> > &candidate_pathdelays, map<int, vector<vector<int> > > &candidate_paths);
+  void thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<vector<int> > > candidate_paths);
+
 protected:
   
   void populate_routing_tables(int node = -1);

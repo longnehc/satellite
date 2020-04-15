@@ -13,7 +13,7 @@ int main()
 	for(int i = 1; i <= 66; i++){
 		for(int j = i + 1; j <= 66; j++){
 			double x = (double)rand()/RAND_MAX;
-			out << (x * 1000 + 1000)/100000<<endl;
+			out << (x * 1000 )/100000<<endl;
 		}
 	}
 	return 0;

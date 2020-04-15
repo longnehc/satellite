@@ -76,14 +76,24 @@ void test(){
   glp_set_obj_coef(lp, 1, 0.6);
  // glp_set_col_name(lp, 2, "x2");
   glp_set_col_bnds(lp, 2, GLP_LO, 0.0, 0.0);
-  glp_set_obj_coef(lp, 2, 0.5);
+  glp_set_obj_coef(lp, 2, 0.5); 
+  
+	
   ia[1] = 1, ja[1] = 1, ar[1] = 1.0; /* a[1,1] = 1 */
   ia[2] = 1, ja[2] = 2, ar[2] = 2.0; /* a[1,2] = 2 */
   ia[3] = 2, ja[3] = 1, ar[3] = 3.0; /* a[2,1] = 3 */
   ia[4] = 2, ja[4] = 2, ar[4] = 1.0; /* a[2,2] = 1 */
   glp_load_matrix(lp, 4, ia, ja, ar);
-  /* solve problem */
-  glp_simplex(lp, NULL);
+  /* solve problem */ 
+	clock_t start,end,end2;
+   	start = clock();
+	glp_simplex(lp, NULL);
+  	glp_intopt(lp, NULL);
+	end = clock();
+
+	end2 = clock();
+    	printf("Use Time1:%d\n",(int)(end-start));
+	printf("Use Time2:%d\n",(int)(end2-end));
   /* recover and display results */
   z = glp_get_obj_val(lp);
   x1 = glp_get_col_prim(lp, 1);
@@ -470,7 +480,9 @@ int SatRouteAgent::dct_routes(int myaddr, int dst, int lasthop){
 			return nh1;
 		} else {
 			//cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
-			return (myaddr + 1 > 10) ? 0 : myaddr+1;
+			int temp_sn = (sn + 1 > 10) ? 0 : sn + 1;
+			//cout<<myaddr<<","<<myaddr/11<<","<<nplane<<","<<temp_sn<<","<<(myaddr/11)*11+temp_sn<<endl;
+			return (myaddr/11)*11+temp_sn;
 			dump(pubadj_);exit(1);
 		}
 	}
@@ -481,11 +493,11 @@ int SatRouteAgent::dct_routes(int myaddr, int dst, int lasthop){
 		double qdelay2 = SatRouteObject::instance().node_load(myaddr+1, nh2+1);
 		double delay1 = (ADJ2(myaddr+1, nh1+1) + qdelay1)/(1-plr1);
 		double delay2 = (ADJ2(myaddr+1, nh2+1) + qdelay2)/(1-plr2);		
-		if(nh2 == lasthop && delay1 != SAT_ROUTE_INFINITY) {
+		if(nh2 == lasthop && ADJ2(myaddr+1, nh1+1) != SAT_ROUTE_INFINITY) {
 			res = nh1;
 			//cout<<"Exist loop. Find link from "<< myaddr <<" to "<<nh1<<" cost= "<<delay1<<" NOW="<<NOW<<endl;
 		}
-		else if (nh2 == lasthop && delay1 == SAT_ROUTE_INFINITY)	{
+		else if (nh2 == lasthop && ADJ2(myaddr+1, nh1+1) == SAT_ROUTE_INFINITY)	{
 			res = nh3;
 			//cout<<"Exist loop. Detour from "<< myaddr <<" to "<<nh3<<" NOW="<<NOW<<endl;
 		} else {
@@ -544,7 +556,9 @@ int SatRouteAgent::dra_routes(int myaddr, int dst, int lasthop){
 			return nh1;
 		} else {
 			//cout<<"The interplane isl does not exists. from "<<myaddr<<" to "<<dst<<endl ; 
-			return (myaddr + 1 > 10) ? 0 : myaddr+1;
+			int temp_sn = (sn + 1 > 10) ? 0 : sn + 1;
+			//cout<<myaddr<<","<<myaddr/11<<","<<nplane<<","<<temp_sn<<","<<(myaddr/11)*11+temp_sn<<endl;
+			return (myaddr/11)*11+temp_sn;
 			dump(pubadj_);exit(1);
 		}
 	}
@@ -675,16 +689,17 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
 	route_timer_.sched(1);
 	load_coopprofile();
 	load_plr();
+	//test();
         //src = {6}; 		//src from 0-65
-	src = {6,7};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//src = {6,7,17,18};	//{"6","7","21","22","36","37","51","52","66","67"};
-	//src = {6,7,17,18,28,29};	//{"6","7","21","22","36","37","51","52","66","67"};
+	src = {6,7,17,18,28,29};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//src = {6,7,17,18,28,29,39,40};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//src = {6,7,17,18,28,29,39,40,50,51};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//ratemap[6] = frate;
 	ratemap[6] = frate;ratemap[7] = frate;ratemap[17] = frate;ratemap[18] = frate;ratemap[28] = frate;
 	ratemap[29] = frate;ratemap[39] = frate;ratemap[40] = frate;ratemap[50] = frate;ratemap[51] = frate;
-	plrthr = 0.1;
+	plrthr = 0.02;
 	//profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
 		cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);
@@ -737,9 +752,10 @@ void SatRouteObject::bminit(){
 
 void SatRouteObject::load_plr(){
 	ifstream in;
-	in.open("plr.txt");
+	in.open("plr-1.txt");
     	if(!in){
         	cout << "open file failed" << endl;
+		exit(1);
         	return;
     	}
 	for(int i = 1; i <= 66; i++){
@@ -1313,6 +1329,44 @@ void SatRouteObject::build_plinks(map<int, vector<vector<int> > > candidate_path
 	cout<<"build_plinks finished()"<<endl;
 }
 
+void SatRouteObject::timetest(map<int, vector<double> > &candidate_pathdelays, map<int, vector<vector<int> > > &candidate_paths){
+	for(int i = 0; i < src.size(); i++){
+		if(candidate_paths.find(src[i])==candidate_paths.end()){cout<<"Not found: "<<src[i]<<endl;exit(1);}
+		vector<vector<int> > tv = candidate_paths[src[i]];
+		vector<double> tdelays = candidate_pathdelays[src[i]];
+		int tvsize = tv.size();
+		for(int j = 0; j < tvsize; j++){
+			vector<int> p = tv[j];
+			double delays = tdelays[j];
+			cout<<i<<","<<j<<endl;
+			for(int k = 0; k < 4; k++){
+				delays += 0.1 * k ;
+				tdelays.push_back(delays);
+				tv.push_back(p);
+			}
+		}
+		cout<<i<<endl;
+		candidate_paths[src[i]] = tv;
+		candidate_pathdelays[src[i]] = tdelays;
+	}
+	cout<<"timetest finished()"<<endl;
+}
+
+int pathnum = 0, thrcnt=0;
+void SatRouteObject::thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<vector<int> > > candidate_paths){
+	for(int i = 0; i < src.size(); i++){
+		if(candidate_paths.find(src[i])==candidate_paths.end()){cout<<"Not found: "<<src[i]<<endl;exit(1);}
+		vector<vector<int> > tv = candidate_paths[src[i]];
+		vector<double> tplrs = candidate_pathplrs[src[i]];
+		int tvsize = tv.size();
+		for(int j = 0; j < tvsize; j++){
+			if(tplrs[j]<plrthr)
+				pathnum++;
+		}
+	}	
+	thrcnt++;
+}
+
 void SatRouteObject::cct_routes(){
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
@@ -1351,6 +1405,9 @@ void SatRouteObject::cct_routes(){
 	}
 	//cout<<"randomized rounding based path calculation for all sources"<<endl;
 	build_plinks(candidate_paths);
+	//timetest(candidate_pathdelays,candidate_paths);
+	thrtest(candidate_pathplrs,candidate_paths);
+	cout<<"Total number of path:"<<pathnum/thrcnt<<endl;
 	final_paths = rr_selection(candidate_pathplrs, candidate_pathdelays, candidate_paths);
 	//cout<<"populate route tables"<<endl;
 	for(int j = 0; j < src.size(); j++){
@@ -1506,6 +1563,8 @@ map<int, vector<vector<int> > > candidate_paths)
 }
 */
 
+int simple = 0, optimal = 0;
+
 map<int, vector<int> > SatRouteObject::rr_selection(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
 map<int, vector<vector<int> > > candidate_paths)
 { 
@@ -1559,7 +1618,7 @@ map<int, vector<vector<int> > > candidate_paths)
 		int sid = srcmap[i];
 		int pid = indexmap[i];
 		if(candidate_pathdelays.find(sid) == candidate_pathdelays.end()) {cout<<"path delay for src="<<sid<<" does not exists"<<endl; exit(1);}
-		glp_set_obj_coef(lp, i, candidate_pathdelays[sid][pid]);
+		glp_set_obj_coef(lp, i, candidate_pathdelays[sid][pid]); 
 		//cout<<"The "<<pid<<"th path from src="<<sid<<"'s delay is "<<candidate_pathdelays[sid][pid]<<endl;
 	}
 	//constraint matrix
@@ -1594,12 +1653,22 @@ map<int, vector<vector<int> > > candidate_paths)
 			cout<<"row="<<row<<",col="<<col<<",value="<<value<<endl;
 			}*/
 		}	
+		
 		ia[i] = row, ja[i] = col, ar[i] = value;		
 		col++;
 	}
 	glp_load_matrix(lp, nrows*ncols, ia, ja, ar);
 	//calculate
+	clock_t start,end,end2;
+    	start = clock();
 	glp_simplex(lp, NULL);
+	end = clock();
+	//glp_intopt(lp, NULL);
+	end2 = clock();
+	simple += (int)(end-start);
+	//optimal += (int)(end2-start);
+    	printf("Use Time1:%d\n", simple);
+	//printf("Use Time2:%d\n", optimal);
 	//output
 	double z;
 	int sid;
@@ -1615,11 +1684,13 @@ map<int, vector<vector<int> > > candidate_paths)
 			roundres[sid].push_back(x);
 		}
 	}
+/*
 	for(int i = 0; i < src.size(); i++){
 		for(int pid = 0; pid < roundres[src[i]].size(); pid++){
 			cout<<"The "<<pid<<"-th path to "<<src[i]<<" round results: "<<roundres[src[i]][pid]<<endl;
 		}
 	}
+*/
 	//round
     	for(int i = 0; i < src.size(); i++){
 		bool find =false;
@@ -1730,7 +1801,7 @@ void SatRouteObject::compute_routes()
 //node ranges from 0-65; adj & route table 1-66
 void SatRouteObject::node_compute_routes(int node)
 {
-	//test();
+	
         int n = size_;
         int* parent = new int[n];
         double* hopcnt = new double[n];
