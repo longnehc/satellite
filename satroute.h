@@ -160,7 +160,9 @@ map<int, vector<vector<int> > > candidate_paths);
   void build_plinks(map<int, vector<vector<int> > > candidate_paths);
   void init_plinks();
   void timetest(map<int, vector<double> > &candidate_pathdelays, map<int, vector<vector<int> > > &candidate_paths);
-  void thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<vector<int> > > candidate_paths);
+  void thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+		map<int, vector<vector<int> > > candidate_paths, map<int, vector<double> >& final_pathdelays, 
+		map<int, vector<vector<int> > >& final_paths);
 
 protected:
   

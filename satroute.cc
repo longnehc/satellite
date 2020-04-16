@@ -693,13 +693,13 @@ SatRouteObject::SatRouteObject() : suppress_initial_computation_(0),route_timer_
         //src = {6}; 		//src from 0-65
 	//src = {6,7};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//src = {6,7,17,18};	//{"6","7","21","22","36","37","51","52","66","67"};
-	src = {6,7,17,18,28,29};	//{"6","7","21","22","36","37","51","52","66","67"};
+	//src = {6,7,17,18,28,29};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//src = {6,7,17,18,28,29,39,40};	//{"6","7","21","22","36","37","51","52","66","67"};
-	//src = {6,7,17,18,28,29,39,40,50,51};	//{"6","7","21","22","36","37","51","52","66","67"};
+	src = {6,7,17,18,28,29,39,40,50,51};	//{"6","7","21","22","36","37","51","52","66","67"};
 	//ratemap[6] = frate;
 	ratemap[6] = frate;ratemap[7] = frate;ratemap[17] = frate;ratemap[18] = frate;ratemap[28] = frate;
 	ratemap[29] = frate;ratemap[39] = frate;ratemap[40] = frate;ratemap[50] = frate;ratemap[51] = frate;
-	plrthr = 0.02;
+	plrthr = 0.1;
 	//profile_test();
 	if(cct_enabled == 1 && tlr_enabled == 1) { 
 		cout<<"tlr and cct cannot be activated at the same time"<<endl; exit(1);
@@ -752,7 +752,7 @@ void SatRouteObject::bminit(){
 
 void SatRouteObject::load_plr(){
 	ifstream in;
-	in.open("plr-1.txt");
+	in.open("plr-3.txt"); 
     	if(!in){
         	cout << "open file failed" << endl;
 		exit(1);
@@ -1353,16 +1353,29 @@ void SatRouteObject::timetest(map<int, vector<double> > &candidate_pathdelays, m
 }
 
 int pathnum = 0, thrcnt=0;
-void SatRouteObject::thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<vector<int> > > candidate_paths){
+void SatRouteObject::thrtest(map<int, vector<double> > candidate_pathplrs, map<int, vector<double> > candidate_pathdelays, 
+		map<int, vector<vector<int> > > candidate_paths, map<int, vector<double> >& final_pathdelays, 
+		map<int, vector<vector<int> > >& final_paths){
 	for(int i = 0; i < src.size(); i++){
 		if(candidate_paths.find(src[i])==candidate_paths.end()){cout<<"Not found: "<<src[i]<<endl;exit(1);}
 		vector<vector<int> > tv = candidate_paths[src[i]];
 		vector<double> tplrs = candidate_pathplrs[src[i]];
+		vector<vector<int> > pathv;
+		vector<double> pathdv;
 		int tvsize = tv.size();
 		for(int j = 0; j < tvsize; j++){
-			if(tplrs[j]<plrthr)
+			if(tplrs[j]<plrthr){
 				pathnum++;
+				pathv.push_back(tv[j]);
+				pathdv.push_back(candidate_pathdelays[src[i]][j]);
+			}
 		}
+		if(pathv.size()==0){
+			pathv.push_back(tv[0]);
+			pathdv.push_back(candidate_pathdelays[src[i]][0]);
+		}
+		final_paths[src[i]] = pathv;
+		final_pathdelays[src[i]] = pathdv;
 	}	
 	thrcnt++;
 }
@@ -1404,11 +1417,14 @@ void SatRouteObject::cct_routes(){
 		candidate_pathdelays[source] = delays;
 	}
 	//cout<<"randomized rounding based path calculation for all sources"<<endl;
+
 	build_plinks(candidate_paths);
 	//timetest(candidate_pathdelays,candidate_paths);
-	thrtest(candidate_pathplrs,candidate_paths);
+	map<int, vector<vector<int> > > fpaths;
+	map<int, vector<double> > fpathdelays;
+	thrtest(candidate_pathplrs,candidate_pathdelays, candidate_paths, fpathdelays,fpaths);
 	cout<<"Total number of path:"<<pathnum/thrcnt<<endl;
-	final_paths = rr_selection(candidate_pathplrs, candidate_pathdelays, candidate_paths);
+	final_paths = rr_selection(candidate_pathplrs, fpathdelays, fpaths);
 	//cout<<"populate route tables"<<endl;
 	for(int j = 0; j < src.size(); j++){
 		if (final_paths.find(src[j]) == final_paths.end()) {cout<<"paths not found for source="<<src[j]<<endl; exit(1);}
@@ -1659,16 +1675,12 @@ map<int, vector<vector<int> > > candidate_paths)
 	}
 	glp_load_matrix(lp, nrows*ncols, ia, ja, ar);
 	//calculate
-	clock_t start,end,end2;
+	clock_t start,end;
     	start = clock();
 	glp_simplex(lp, NULL);
-	end = clock();
-	//glp_intopt(lp, NULL);
-	end2 = clock();
-	simple += (int)(end-start);
-	//optimal += (int)(end2-start);
-    	printf("Use Time1:%d\n", simple);
-	//printf("Use Time2:%d\n", optimal);
+	end = clock();  
+	simple += (int)(end-start); 
+    	printf("Use Time1:%d\n", simple); 
 	//output
 	double z;
 	int sid;
