@@ -148,6 +148,8 @@ void SatRouteAgent::alloc(int slot)
 	delete [] old;
 }
 
+ 
+
 void SatRouteAgent::install(int slot, int nh, NsObject* p)
 {
 	if (slot >= nslot_)
@@ -156,6 +158,23 @@ void SatRouteAgent::install(int slot, int nh, NsObject* p)
 	slot_[slot].entry = p;
 	if (slot >= maxslot_)
 		maxslot_ = slot;
+	//cout<<"The nx_hop from "<<myaddr()<<" to "<<slot<<" at "<<myaddr()<<" is "<<nh<<endl;
+}
+
+void SatRouteAgent::sinstall(int dst, int next_hop, NsObject* p, int src)
+{
+	slot_entry* sslot;
+	if(slotmap_.find(src) != slotmap_.end()){
+		sslot = slotmap_[src];
+	} else {
+		sslot = new slot_entry[128];
+		memset(sslot, 0, 128 * sizeof(slot_entry));	
+	}
+	sslot[dst].next_hop = next_hop;
+	sslot[dst].entry = p;
+	slotmap_[src] = sslot;
+	//if(src == 7)
+	//	cout<<"The nx_hop from "<<src<<" to "<<dst<<" at "<<myaddr()<<" is "<<next_hop<<endl;
 }
 
 void SatRouteAgent::clear_slots()
@@ -271,7 +290,7 @@ bool SatRouteAgent::droppacket(int from, int to){
  
 bool dropenabled = false;
 void SatRouteAgent::forwardPacket(Packet * p)
-{
+{ 
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
 #define ADJ_ENTRY(i, j) adj_[INDEX(i, j, size_)].entry
 	hdr_ip *iph = hdr_ip::access(p);
@@ -280,12 +299,13 @@ void SatRouteAgent::forwardPacket(Packet * p)
 	int lasthop = hdrc->last_hop_;
 	hdrc->direction() = hdr_cmn::DOWN; // send it down the stack
 	int dst = Address::instance().get_nodeaddr(iph->daddr());
+	int src = Address::instance().get_nodeaddr(iph->saddr());
 	// Here we need to have an accurate encoding of the next hop routing
 	// information
 	if (myaddr_ == iph->daddr()) {
 		printf("Error:  trying to forward a packet destined to self: %d\n", myaddr_); 
 		Packet::free(p);
-	}
+	} 
 	hdrc->addr_type_ = NS_AF_INET;
 	hdrc->last_hop_ = myaddr_; // for tracing purposes 
 	if (SatRouteObject::instance().data_driven_computation())
@@ -298,6 +318,7 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
 		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
 		//cout<<"myaddr="<<myaddr_<<",dst="<<dst<<endl;
+		/*
 		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY){		//route for the background flow
 			//cout<<"myaddr="<<myaddr_<<",dst="<<dst<<endl;
 			link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, dst+1);	
@@ -306,27 +327,43 @@ void SatRouteAgent::forwardPacket(Packet * p)
                 	link_entry_->recv(p, (Handler *)0);
 			return;
 		}		
-		else{
+		else{	 */
+			/*
 			if (slot_ == 0) { // No routes to anywhere
 				if (node_->trace())
 					node_->trace()->traceonly(p);
 				Packet::free(p);
 				return;
+			}*/
+			//link_entry_ = slot_[dst].entry;			 
+ 
+			if(slotmap_.find(src) !=slotmap_.end()){
+ 
+				link_entry_ = slotmap_[src][dst].entry;
+			//if(src ==7)
+			//cout<<"flog: The nx_hop from "<<src<<" to "<<dst<<" at "<<myaddr_<<" is "<<slotmap_[src][dst].next_hop<<" link_entry_="<<link_entry_<<endl;
+				 
+			} else {
+				cout<<"myaddr_: "<<myaddr_<<" slot of "<<src<<" not found"<<endl;
+				Packet::free(p);
+				return;
 			}
-			link_entry_ = slot_[dst].entry;
+ 
 			if (link_entry_ == 0) {
 				if (node_->trace())
 					node_->trace()->traceonly(p);
 				Packet::free(p);
 				return;
 			} 
-			if(droppacket(myaddr_+1, slot_[dst].next_hop+1) && dropenabled){ 
+			if(droppacket(myaddr_+1, slotmap_[src][dst].next_hop+1) && dropenabled){ 
 				return;
 			}
-			hdrc->next_hop_ = slot_[dst].next_hop;
+			//hdrc->next_hop_ = slot_[dst].next_hop;		 
+ 
+			hdrc->next_hop_ = slotmap_[src][dst].next_hop;
 			link_entry_->recv(p, (Handler *)0);
 			return;
-		}
+		//}
 	} else {
 		// DISTRIBUTED ROUTING LOOKUP COULD GO HERE
 		//cout<<latitude_threshold_<<endl;
@@ -1256,15 +1293,15 @@ void SatRouteObject::tlr_routes(){
 		path.push_back(source); 
 		tlrpathcal(sp, sn, dp, dn, np, nn, 0, 9999, path, tpath);
 		if(tpath.size() == 0) {cout<<"path from "<<src[i]<<" to "<<coop_index<<"not found"<<endl; exit(1);}
-		if(src[i] == 7) {cout<<"path from "<<src[i]<<" to "<<coop_index<<" at "<<NOW<<endl;}
+		//if(src[i] == 7) {cout<<"path from "<<src[i]<<" to "<<coop_index<<" at "<<NOW<<endl;}
 		map<int, int> mpath;
 		//cout<<"Find a path with minimal delay: "<<tpath.size()<<endl;	
 		for(int i = 0; i < tpath.size() - 1; i++){
-		//	cout<<tpath[i]<<"->";
+			cout<<tpath[i]<<"->";
 			mpath[tpath[i]] = tpath[i+1];	
 		}
 		mpath[tpath[tpath.size()-1]] = dest;	
-		//cout<<tpath[tpath.size()-1]<<endl;
+		cout<<tpath[tpath.size()-1]<<endl;
 		//populate route tables
 		NsObject *target;
 		SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
@@ -1279,11 +1316,13 @@ void SatRouteObject::tlr_routes(){
 					dump();					
 					exit(1);
 				}
-				((SatNode*)snodep)->ragent()->install(dest, mpath[snodep->address()], target);
+				//((SatNode*)snodep)->ragent()->install(dest, mpath[snodep->address()], target);
+				((SatNode*)snodep)->ragent()->sinstall(dest, mpath[snodep->address()], target, src[i]);
 				//cout<<"The next hop from "<<snodep->address()<<" to "<<dest<<" is "<<mpath[snodep->address()]<<endl;
 			}			
 		}
 	}
+	cout<<"tlr routes ends."<<endl;
 }
 
 void SatRouteObject::init_plinks(){
@@ -1432,11 +1471,11 @@ void SatRouteObject::cct_routes(){
 		map<int, int> mpath;
 		//cout<<"Find a path with minimal delay: "<<endl;	
 		for(int i = 0; i < f_path.size() - 1; i++){
-		//	cout<<f_path[i]<<"->";
+			cout<<f_path[i]<<"->";
 			mpath[f_path[i]] = f_path[i+1];	
 		}
 		mpath[f_path[f_path.size()-1]] = dest;	
-		//cout<<f_path[f_path.size()-1]<<endl;
+		cout<<f_path[f_path.size()-1]<<endl;
 		NsObject *target;
 		SatNode *snodep = (SatNode*) Node::nodehead_.lh_first;
 		for (; snodep; snodep = (SatNode*) snodep->nextnode()) {
@@ -1449,7 +1488,8 @@ void SatRouteObject::cct_routes(){
 					dump();					
 					exit(1);
 				}
-				((SatNode*)snodep)->ragent()->install(dest, mpath[snodep->address()], target);
+				//((SatNode*)snodep)->ragent()->install(dest, mpath[snodep->address()], target);
+				((SatNode*)snodep)->ragent()->sinstall(dest, mpath[snodep->address()], target, src[j]);				
 				//cout<<"The next hop from "<<snodep->address()<<" to "<<dest<<" is "<<mpath[snodep->address()]<<endl;
 			}			
 		}

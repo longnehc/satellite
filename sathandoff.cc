@@ -379,9 +379,10 @@ int TermLinkHandoffMgr::handoff()
 				// Set our channel pointers to NULL
 				slhp->phy_tx()->setchnl(0);
 				slhp->phy_rx()->setchnl(0);
-				// wired-satellite integration	
-			    // 	if(slhp->phy_tx()->node()->address()==67) 
-			    // cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
+				// wired-satellite integration
+				//key log:	
+			     	//if(slhp->phy_tx()->node()->address()==67) 
+			    	//cout<<"[Simulator instance] sat_link_destroy: "<<slhp->phy_tx()->node()->address()<<","<<peer_->address()<<","<<NOW<<endl;
 				//Initial case : NOW = 0, set by tcl
 				if(NOW!=0) { addCoop(slhp->phy_tx()->node()->address()+1,peer_->address()+1, NOW);}
 				if (SatRouteObject::instance().wiredRouting()) {
@@ -502,6 +503,7 @@ int TermLinkHandoffMgr::handoff()
 					// Add phy to channel's linked list of i/fces
 					slhpt->phy_rx()->insertchnl(&(tpeer->downlink()->ifhead_));
 					addCoop(slhpt->phy_tx()->node()->address()+1,tpeer->address()+1, NOW);
+					//key log:					
 					//cout<<"[Simulator instance] sat_link_establish-twins: "<<slhpt->phy_tx()->node()->address()<<","<<tpeer->address()<<" at "<<NOW<<" by "<<slhpt<<endl;
 					//cout<<"67 next ddd: "<<ddd<<","<<slhpt<<endl;
 					ddd++;
@@ -523,7 +525,7 @@ int TermLinkHandoffMgr::handoff()
 						//cout<<"46:"<<slhp->phy_tx()->node()->address()<<","<<slhp<<","<<best_peer_->address()<<endl;
 //cout<<5<<endl;	
 					} 
-				//cout<<"47:"<<slhp->phy_tx()->node()->address()<<","<<slhp<<","<<best_peer_->address()<<endl;
+						//cout<<"47:"<<slhp->phy_tx()->node()->address()<<","<<slhp<<","<<best_peer_->address()<<endl;
 					SatNode* tpeer =  peers[0];   //best_peer_;
 					slhp->phy_tx()->setchnl(tpeer->uplink());
 					
@@ -534,7 +536,8 @@ int TermLinkHandoffMgr::handoff()
 					// Add phy to channel's linked list of i/fces
 					slhp->phy_rx()->insertchnl(&(tpeer->downlink()->ifhead_));
 					addCoop(slhp->phy_tx()->node()->address()+1,tpeer->address()+1, NOW);
-//if(slhp->phy_tx()->node()->address() == 67)
+					//key log:
+					//if(slhp->phy_tx()->node()->address() == 67)
 					//cout<<"[Simulator instance] sat_link_establish0: "<<slhp->phy_tx()->node()->address()<<","<<tpeer->address()<<" at "<<NOW<<" by "<<slhp<<endl;
 					break;
 				}

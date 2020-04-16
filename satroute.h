@@ -75,6 +75,7 @@ public:
   // centralized routing
   void clear_slots();
   void install(int dst, int next_hop, NsObject* p);
+  void sinstall(int dst, int next_hop, NsObject* p, int src);
   SatNode* node() { return node_; }
   int myaddr() {return myaddr_; }
   int dra_routes(int myaddr, int dst, int lasthop);
@@ -96,6 +97,7 @@ protected:
   int maxslot_;
   int nslot_;
   slot_entry* slot_;	// Node's forwarding table 
+  map<int, slot_entry*> slotmap_;	//Node's forwarding map per source
   void alloc(int);	// Helper function
   SatNode* node_;
   static double latitude_threshold_;
