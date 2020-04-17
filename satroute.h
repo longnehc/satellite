@@ -85,11 +85,11 @@ public:
   int next_num(int sn, int dn); 
   bool droppacket(int from, int  to); 
   void dump(adj_entry* pubadj_);
-  int dct_coop_selection(int dst);
+  vector<int> dct_coop_selection(int dst);
 protected:
   virtual void recv(Packet *, Handler *);
   void forwardPacket(Packet*);
-  
+  bool firstcoop;
   
   int myaddr_;           // My address-- set from OTcl
 

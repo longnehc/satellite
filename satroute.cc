@@ -121,6 +121,7 @@ SatRouteAgent::SatRouteAgent (): Agent (PT_MESSAGE), maxslot_(0), nslot_(0), slo
 {
 	bind ("myaddr_", &myaddr_);
 	bind("latitude_threshold_", &latitude_threshold_);
+	firstcoop = true;
 }
 
 SatRouteAgent* SatRouteAgent::instance_;
@@ -205,7 +206,9 @@ int SatRouteAgent::command (int argc, const char *const *argv)
 }
 
 //dst ranges from >= 66; return value ranges from 0-65
-int SatRouteAgent::dct_coop_selection(int dst){
+bool first =true;
+vector<int> SatRouteAgent::dct_coop_selection(int dst){
+/*
 	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
 	int t_dst = dst + 1;
 	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop to "<<t_dst<<" does not exists at "<<NOW<<endl;}
@@ -242,22 +245,56 @@ int SatRouteAgent::dct_coop_selection(int dst){
 			
 		}
         }
-/*	if(res == 0) {
-	cout<<"t_dst= "<<t_dst<<" NOW: "<<NOW<<endl;
-		for(int i = 1; i <=66; i++){
-			if(tm.find(i) != tm.end()){
-				vector<double>tv = tm[i];
-cout<<"i="<<i<<" "; 
-		                for(int j = 0; j < tv.size(); j++){
-					cout<<tv[j]<<",";
-				}
-cout<<endl;
-			}
-		}
-	}*/
 	if(res == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);}
 	//cout<<"find final: "<<res-1<<endl;
 	return res-1;
+*/
+	map<int, map<int, vector<double> > > coopprofile = SatRouteObject::instance().get_coopprofile();
+	int t_dst = dst + 1;
+	if(coopprofile.find(t_dst) == coopprofile.end()) {cout<<"coop to "<<t_dst<<" does not exists at "<<NOW<<endl;}
+	double cur = NOW;
+	map<int, int> mres;
+	map<int, vector<double> > tm = coopprofile[t_dst];
+	vector<int> avaicoop;
+	for(int i = 1; i <=66; i++){
+		if(tm.find(i) != tm.end()){
+			vector<double>tv = tm[i]; 
+		               for(int j = 0; j < tv.size(); j = j + 2){
+				  if(int(tv[j]) <= int(cur) && j + 1 <tv.size()){
+				     if(int(tv[j+1]) <= int(cur)) continue;
+					//cout<<"find "<<i<<" for dst= "<<t_dst<<" dur = "<<tv[j+1]-cur<<endl;
+				     else{avaicoop.push_back(i); break;}
+				   }
+				  if(int(tv[j]) <= int(cur) && j == tv.size() - 1){
+				     avaicoop.push_back(i);
+				     break;
+				  }
+				}
+				
+		}
+	}
+	if(avaicoop.size() == 0){cout<<"coop to "<<t_dst<<" does not find at "<<NOW<<endl; exit(1);}
+	//if(avaicoop.size() > 1){cout<<"coop to "<<t_dst-1<<" 1: "<<avaicoop[0]-1<<",2:"<<avaicoop[1]-1<<" at "<<NOW<<endl;}
+	//double rdv = (double)rand()/RAND_MAX;	
+/*
+	if(avaicoop.size() == 1)	{
+		//cout<<"choose0 "<<avaicoop[0]-1<<endl;	
+		return avaicoop[0]-1;
+	}
+	else {
+		if(first)	{
+		//if(rdv < 0.5){		
+			cout<<"choose1 "<<avaicoop[0]-1<<endl;
+			first = !first;
+			return avaicoop[0]-1;		
+		}
+		else{
+			cout<<"choose2 "<<avaicoop[1]-1<<endl;	
+			first = !first;
+		        return avaicoop[1]-1;
+		}
+	}*/
+	return avaicoop;
 }
 
 //myaddr,dst ranges from 0-65
@@ -373,28 +410,43 @@ void SatRouteAgent::forwardPacket(Packet * p)
 		#define ADJ_ENTRY2(i, j) pubadj_[INDEX(i, j, size)].entry
 		#define ADJ2(i, j) pubadj_[INDEX(i, j, size)].cost
 		int nxhop;
-
-		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY) {
+		vector<int> coops = dct_coop_selection(dst);			//coop_index ranges from 0-65
+		 
+		if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY && coops.size() == 1 && myaddr_ == coops[0]-1) {
 			nxhop = dst; 
-			//cout<<"reach destination: "<<dst<<endl;
+			//cout<<"coop 0 "<<coops[0]-1<<endl;
+			//cout<<"reach destination0: "<<dst<<" myaddr_ "<<myaddr_<<" nxhop "<<nxhop<<endl;
+		} else if(ADJ2(myaddr_+1, dst+1) !=SAT_ROUTE_INFINITY &&
+				coops.size() > 1 && (myaddr_ == coops[0]-1 || myaddr_ == coops[1]-1)){
+			//cout<<"coop 0 "<<coops[0]-1<<endl;
+			//cout<<"coop 1 "<<coops[1]-1<<endl;
+			if(firstcoop){ 
+				nxhop = dst; firstcoop = !firstcoop;
+			}
+			else { 
+				if(coops[0]-1 == myaddr_) nxhop = coops[1]-1; 
+				else nxhop = coops[0]-1;
+				firstcoop = !firstcoop; 
+			}
+			//cout<<"reach destination1: "<<dst<<" myaddr_ "<<myaddr_<<" nxhop "<<nxhop<<" firstcoop "<<firstcoop<<endl;
 		}
-		else{
-			//cout<<"never"<<endl;
-			int coop_index = dct_coop_selection(dst);			//coop_index ranges from 0-65
+		else{ 
+			int coop_index = coops[0]-1;
 			//calculate nxthop by distributed algorithm
 			if(SatRouteObject::instance().get_dra() == 1)
 				nxhop = dra_routes(myaddr_, coop_index, lasthop);		//nxthop ranges from 0-65
 			else if (SatRouteObject::instance().get_dct() == 1)
 				nxhop = dct_routes(myaddr_, coop_index, lasthop);
-			//cout<<"myaddr_: "<<myaddr_<<" coop_index: "<<coop_index<<" nx_hop: "<<nxhop<<endl;
+			//cout<<"The next hop from "<<myaddr_<<" to coop_index: "<<coop_index<<" is "<<nxhop<<endl;
 		}		
 		//get link entry from nodehead_
 		if(droppacket(myaddr_+1, nxhop+1) && dropenabled){ 
 			//cout<<"The packet is droped from "<<myaddr_<<" to "<<nxhop<<endl;;
 			return;
 		}
-		
+		 
 		link_entry_ = (NsObject*)ADJ_ENTRY2(myaddr_+1, nxhop+1);	
+		//cout<<"555:"<<myaddr_<<","<<nxhop<<","<<link_entry_<<endl;
 		//dump(pubadj_);
 		//set next hop & call recv
 		hdrc->next_hop_  = nxhop;
