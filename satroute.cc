@@ -325,7 +325,7 @@ bool SatRouteAgent::droppacket(int from, int to){
  */
 
  
-bool dropenabled = false;
+bool dropenabled = true;
 void SatRouteAgent::forwardPacket(Packet * p)
 { 
 #define ADJ(i, j) adj_[INDEX(i, j, size_)].cost
@@ -856,6 +856,29 @@ void SatRouteObject::load_plr(){
 			//cout<<"Plr from "<< i << " to "<< j <<" is " <<x<<endl;
 		}
 	}
+	plr[26][25] = 0;
+	plr[5][4] = 0.03;
+	plr[4][3] = 0.03;
+	plr[3][2] = 0.03;
+	plr[13][24] = 0.03;
+	plr[24][35] = 0.03;	
+
+	plr[16][27] = 0;
+	plr[16][15] = 0.03;
+	plr[15][14] = 0.03;
+	plr[14][13] = 0.03;
+
+	plr[25][24] = 0.03;
+	
+	plr[38][27] = 0;
+	plr[38][37] = 0.03;
+	plr[37][36] = 0.03;
+	plr[36][35] = 0.03;
+
+	plr[49][38] = 0;
+	plr[49][48] = 0.03;
+	plr[48][47] = 0.03;
+	plr[47][46] = 0.03;
 }
 //from and to ranges from 1-66
 double SatRouteObject::get_plr(int from, int to){
